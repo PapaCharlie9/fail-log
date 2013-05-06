@@ -63,7 +63,7 @@ public class FailLog : PRoConPluginAPI, IPRoConPluginInterface
 
     /* Constants & Statics */
 
-    public const int CRASH_COUNT_HEURISTIC = 8; // player count difference signifies a blaze dump
+    public const int CRASH_COUNT_HEURISTIC = 16; // player count difference signifies a blaze dump
 
     public const double CHECK_FOR_UPDATES_MINS = 12*60; // every 12 hours
 
