@@ -63,7 +63,7 @@ public class FailLog : PRoConPluginAPI, IPRoConPluginInterface
 
     /* Constants & Statics */
 
-    public const int CRASH_COUNT_HEURISTIC = 16; // player count difference signifies a blaze dump
+    public const int CRASH_COUNT_HEURISTIC = 24; // player count difference signifies a blaze dump
 
     public const double CHECK_FOR_UPDATES_MINS = 12*60; // every 12 hours
 
@@ -345,7 +345,7 @@ private bool ValidateSettings(String strVariable, String strValue) {
 
         if (strVariable.Contains("Debug Level")) ValidateIntRange(ref DebugLevel, "Debug Level", 0, 9, 2, false);
 
-        if (strVariable.Contains("Blaze Disconnect Heuristic")) ValidateIntRange(ref BlazeDisconnectHeuristic, "Blaze Disconnect Heuristic", 4, 64, 8, false);
+        if (strVariable.Contains("Blaze Disconnect Heuristic")) ValidateIntRange(ref BlazeDisconnectHeuristic, "Blaze Disconnect Heuristic", 12, 64, 24, false);
     
         /* ===== SECTION 2 - Exclusions ===== */
     
@@ -446,7 +446,9 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
 
         // Check if player count is less than expected
         bool blazed = false;
-        if (!fServerCrashed && (players.Count + BlazeDisconnectHeuristic) < fLastPlayerCount) {
+        if (!fServerCrashed 
+        && players.Count < fLastPlayerCount 
+        && (fLastPlayerCount - players.Count) >= Math.Min(BlazeDisconnectHeuristic, fLastPlayerCount)) {
             fAfterPlayers = players.Count;
             Failure("BLAZE_DISCONNECT");
             blazed = true;
