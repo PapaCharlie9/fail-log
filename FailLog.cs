@@ -427,8 +427,6 @@ public override void OnLogin() {
     try {
         if (fJustConnected) return;
         fGotLogin = true;
-        Failure("PROCON_RECONNECTED");
-        fGotLogin = false;
     } catch (Exception e) {
         ConsoleException(e);
     }
@@ -447,17 +445,20 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
         fJustConnected = false;
 
         // Check if player count is less than expected
-        if ((players.Count + BlazeDisconnectHeuristic) < fLastPlayerCount) {
+        bool blazed = false;
+        if (!fServerCrashed && (players.Count + BlazeDisconnectHeuristic) < fLastPlayerCount) {
             fAfterPlayers = players.Count;
             Failure("BLAZE_DISCONNECT");
+            blazed = true;
         }
         fLastPlayerCount = players.Count;
 
         // Check if last list players update took longer than expected
-        if (fLastListPlayersTimestamp != DateTime.MinValue && DateTime.Now.Subtract(fLastListPlayersTimestamp).TotalSeconds > MAX_LIST_PLAYERS_SECS) {
+        if (!fServerCrashed && !blazed && fLastListPlayersTimestamp != DateTime.MinValue && DateTime.Now.Subtract(fLastListPlayersTimestamp).TotalSeconds > MAX_LIST_PLAYERS_SECS) {
             Failure("NETWORK_CONGESTION");
         }
         fLastListPlayersTimestamp = DateTime.Now;
+        fServerCrashed = false;
 
 
     } catch (Exception e) {
@@ -485,7 +486,9 @@ public override void OnServerInfo(CServerInfo serverInfo) {
             fLastUptime = fServerUptime;
             fServerCrashed = true;
             Failure("GAME_SERVER_CRASH");
-            fServerCrashed = false;
+        } else if (fGotLogin) {
+            Failure("PROCON_RECONNECTED");
+            fGotLogin = false;
         }
 
         fServerInfo = serverInfo;
