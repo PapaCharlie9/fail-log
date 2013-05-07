@@ -709,7 +709,7 @@ private void SendBlazeReport(String query)
 
         if (String.IsNullOrEmpty(response) || !response.Contains("Thank you for your Blaze Report!"))
         {
-            ConsoleWarn("BlazeReport didn't contain valid response!");
+            if (DebugLevel >= 3) ConsoleWarn("BlazeReport didn't contain valid response!");
         }
     }
     catch (Exception e)
