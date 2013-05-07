@@ -582,7 +582,23 @@ private void Failure(String type) {
     if (EnableLogToFile) {
         ServerLog(LogFile, line);
     }
-    // TBD - Put PHP update here?
+
+    String phpQuery = String.Format("http://dev.myrcon.com/procon/blazereport/report.php?key=HhcF93olvLgHh9UTYlqs&gsp={0}&owner={1}&forumname={2}&region={3}&game={4}&servername={5}&serverhost={6}&serverport={7}&map={8}&gamemode={8}&players={9}&uptime={10}&additionalinfo={11}",
+            RankedServerProvider,
+            ServerOwnerOrCommunity,
+            MyrconForumUserName,
+            ServerRegion,
+            type,
+            fServerInfo.ServerName,
+            fHost,
+            fPort,
+            this.FriendlyMap,
+            this.FriendlyMode,
+            players,
+            upTime,
+            AdditionalInformation);
+
+    SendBlazeReport(phpQuery);
 }
 
 private String FormatMessage(String msg, MessageType type) {
@@ -666,6 +682,29 @@ public void ServerLog(String file, String line) {
     entry = entry + fHost + "_" + fPort + ": " + line;
     String path = Path.Combine("Logs", file);
     Log(path, entry);
+}
+
+private void SendBlazeReport(String query)
+{
+    try
+    {
+        WebClient webClient = new WebClient();
+        String userAgent = "Mozilla/5.0 (compatible; Procon 1; FailLog)";
+        webClient.Headers.Add("user-agent", userAgent);
+
+        StreamReader streamReader = new StreamReader(webClient.OpenRead(query));
+        String response = streamReader.ReadToEnd();
+
+        if (String.IsNullOrEmpty(response) || !response.Contains("Thank you for your Blaze Report!"))
+        {
+            ConsoleWarn("BlazeReport didn't contain valid response!");
+        }
+    }
+    catch (Exception e)
+    {
+        ConsoleError("Exception during SendBlazeReport");
+        ConsoleException(e);
+    }
 }
 
 private void ServerCommand(params String[] args)
