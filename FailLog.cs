@@ -111,6 +111,7 @@ public int DebugLevel;
 public bool EnableLogToFile;  // if true, sandbox must not be in sandbox!
 public String LogFile;
 public int BlazeDisconnectHeuristic;
+public bool EnableWebLog;
 
 /* ===== SECTION 2 - Server Description ===== */
 
@@ -163,6 +164,7 @@ public FailLog() {
     EnableLogToFile = false;
     LogFile = "fail.log";
     BlazeDisconnectHeuristic = CRASH_COUNT_HEURISTIC;
+    EnableWebLog = true;
 
     /* ===== SECTION 2 - Server Description ===== */
 
@@ -198,7 +200,7 @@ public String GetPluginName() {
 }
 
 public String GetPluginVersion() {
-    return "1.0.0.1";
+    return "1.0.0.3";
 }
 
 public String GetPluginAuthor() {
@@ -249,6 +251,8 @@ public List<CPluginVariable> GetDisplayPluginVariables() {
         }
 
         lstReturn.Add(new CPluginVariable("1 - Settings|Blaze Disconnect Heuristic", BlazeDisconnectHeuristic.GetType(), BlazeDisconnectHeuristic));
+
+        lstReturn.Add(new CPluginVariable("1 - Settings|Enable Web Log", EnableWebLog.GetType(), EnableWebLog));
         
         /*
         var_name = "3 - Round Phase and Population Settings|Spelling Of Speed Names Reminder";
@@ -447,7 +451,7 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
 
         // Check conditions
         if (fServerCrashed) { // serverInfo uptime decreased more than 2 seconds?
-            Failure("GAME_SERVER_CRASH");
+            Failure("GAME_SERVER_RESTART");
         } else if (fGotLogin) { // got initial login event?
             Failure("PROCON_RECONNECTED");
         } else if (fLastPlayerCount >= 16
@@ -553,7 +557,7 @@ public override void OnMaxPlayers(int limit) {
 
 private void Failure(String type) {
     if (fServerInfo == null) {
-        ConsoleWarn("Failure: fServerInfo == null!");
+        if (DebugLevel >= 3) ConsoleWarn("Failure: fServerInfo == null!");
         return;
     }
     String utcTime = DateTime.UtcNow.ToString("yyyyMMdd_HH:mm:ss");
@@ -583,22 +587,26 @@ private void Failure(String type) {
         ServerLog(LogFile, line);
     }
 
-    String phpQuery = String.Format("http://dev.myrcon.com/procon/blazereport/report.php?key=HhcF93olvLgHh9UTYlqs&gsp={0}&owner={1}&forumname={2}&region={3}&game={4}&servername={5}&serverhost={6}&serverport={7}&map={8}&gamemode={8}&players={9}&uptime={10}&additionalinfo={11}",
-            RankedServerProvider,
-            ServerOwnerOrCommunity,
-            MyrconForumUserName,
-            ServerRegion,
-            type,
-            fServerInfo.ServerName,
-            fHost,
-            fPort,
-            this.FriendlyMap,
-            this.FriendlyMode,
-            players,
-            upTime,
-            AdditionalInformation);
+    if (EnableWebLog) {
 
-    SendBlazeReport(phpQuery);
+        String phpQuery = String.Format("http://dev.myrcon.com/procon/blazereport/report.php?key=HhcF93olvLgHh9UTYlqs&gsp={0}&owner={1}&forumname={2}&region={3}&game={4}&servername={5}&serverhost={6}&serverport={7}&map={8}&gamemode={8}&players={9}&uptime={10}&additionalinfo={11}",
+                RankedServerProvider,
+                ServerOwnerOrCommunity,
+                MyrconForumUserName,
+                ServerRegion,
+                type,
+                fServerInfo.ServerName,
+                fHost,
+                fPort,
+                this.FriendlyMap,
+                this.FriendlyMode,
+                players,
+                upTime,
+                AdditionalInformation);
+
+        SendBlazeReport(phpQuery);
+
+    }
 }
 
 private String FormatMessage(String msg, MessageType type) {
@@ -702,7 +710,7 @@ private void SendBlazeReport(String query)
     }
     catch (Exception e)
     {
-        ConsoleError("Exception during SendBlazeReport");
+        if (DebugLevel >= 3) ConsoleError("Exception during SendBlazeReport");
         ConsoleException(e);
     }
 }
@@ -1031,10 +1039,12 @@ static class FailLogUtils {
 <p>For BF3, this plugin logs game server crashes, layer disconnects and Blaze dumps.</p>
 
 <h2>Description</h2>
-<p>Each failure event generates a single log line. The contents of the line are divided into fields. The following table describes each of the fields and shows an example:
+<p>Each failure event generates a single log line. The log line is written to plugin.log. Optionally, it may also be written to a file in procon/Logs and/or to a web logging database on myrcon.com, controled by plugin settings (see below). Note that this plugin must be run without restrictions (<b>not</b> in sandbox mode) in order to use either the optional separate log file or web log features. The plugin may be run in sandbox mode if both of the optional logging features are disabled.</p>
+
+<p>The contents of a log line are divided into fields. The following table describes each of the fields and shows an example:
 <table>
 <tr><th>Field</th><th>Description</th><th>Example</th></tr>
-<tr><td>Type</td><td>A label that describes the type of failure. The types tracked are game server crashes, Procon disconnects, blaze disconnects, and network congestion to/from Procon.</td><td>BLAZE_DISCONNECT</td></tr>
+<tr><td>Type</td><td>A label that describes the type of failure. The types tracked are game server restarts, Procon disconnects, blaze disconnects, and network congestion to/from Procon.</td><td>BLAZE_DISCONNECT</td></tr>
 <tr><td>UTC</t><td>UTC time stamp of the plugin's detection of the failure; the actual event might have happened earlier</td><td>20130507_01:52:58</td></tr>
 <tr><td>Server</td><td>Server name per vars.serverName</td><td>&quot;CTF Noobs welcome!&quot;</td></tr>
 <tr><td>Map</td><td>Friendly map name</td><td>Noshahr Canals</td></tr>
@@ -1043,7 +1053,7 @@ static class FailLogUtils {
 <tr><td>Players</td><td>vars.maxPlayers/previous known player count/current player count</td><td>64/63/0</td></tr>
 <tr><td>Uptime</td><td>Uptime of game server as days.hh:mm:ss</td><td>6.09:01:35</td></tr>
 <tr><td>Details</td><td>All of the information you entered in Section 2 of the settings, plus the Region and Country from serverInfo</td><td>&quot;Ranked Server Provider,Server Owner Or Community,Myrcon Forum User Name,Server Region,NAm/US,Additional Information&quot;</td></tr>
-</table>
+</table></p>
 
 <h2>Settings</h2>
 <p>Plugin settings are described in this section.</p>
@@ -1058,6 +1068,8 @@ static class FailLogUtils {
 <p><b>Log File</b>: Name of the file to use for logging. Defaults to &quot;fail.log&quot; and is stored in procon/Logs.</p>
 
 <p><b>Blaze Disconnect Heuristic</b>: Number from 16 to 64, default 24. Not every sudden drop in players is a Blaze disconnect. Also, sometimes a Blaze disconnect does not disconnect all players or they reconnect before the next listPlayers event happens. This heuristic (guess) accounts for those facts. If the new player count is less than the last known player count and the difference is greater than or equal to either this value or the last known player count, whichever is less, a Blaze disconnect will be assumed to have happened. For example, if you set this value to 24 and you have 32 players that drop to 20, no failure will be logged (32-20=12, 12 is not greater than or equal to min(24,32)). On the other hand, if your 32 players drops to 1, a failure will be logged (32-1=31, 31 is greater than min(24,32)). If you want to only detect drops to zero players, set this value to the maximum slots on your server. If the last known player count was less than 16, no detection is logged, even though a Blaze disconnect may have happened.</p>
+
+<p><b>Enable Web Log</b>: True or False, default True. If False, no logging is sent to the web database. If True, logging is also sent to the web database.</p>
 
 <h3>Section 2</h3>
 <p>These settings fully describe your server for logging purposes. Information important for tracking global outages and that can't be extracted from known data is included. All of this information is optional.</p>
