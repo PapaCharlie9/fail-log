@@ -583,22 +583,25 @@ private void Failure(String type) {
         ServerLog(LogFile, line);
     }
 
-    String phpQuery = String.Format("http://dev.myrcon.com/procon/blazereport/report.php?key=HhcF93olvLgHh9UTYlqs&gsp={0}&owner={1}&forumname={2}&region={3}&game={4}&servername={5}&serverhost={6}&serverport={7}&map={8}&gamemode={8}&players={9}&uptime={10}&additionalinfo={11}",
-            RankedServerProvider,
-            ServerOwnerOrCommunity,
-            MyrconForumUserName,
-            ServerRegion,
-            type,
-            fServerInfo.ServerName,
-            fHost,
-            fPort,
-            this.FriendlyMap,
-            this.FriendlyMode,
-            players,
-            upTime,
-            AdditionalInformation);
+    if (type == "BLAZE_DISCONNECT")
+    {
+        String phpQuery = String.Format("http://dev.myrcon.com/procon/blazereport/report.php?key=HhcF93olvLgHh9UTYlqs&gsp={0}&owner={1}&forumname={2}&region={3}&game={4}&servername={5}&serverhost={6}&serverport={7}&map={8}&gamemode={8}&players={9}&uptime={10}&additionalinfo={11}",
+                RankedServerProvider,
+                ServerOwnerOrCommunity,
+                MyrconForumUserName,
+                ServerRegion,
+                type,
+                fServerInfo.ServerName,
+                fHost,
+                fPort,
+                this.FriendlyMap,
+                this.FriendlyMode,
+                players,
+                upTime,
+                AdditionalInformation);
 
-    SendBlazeReport(phpQuery);
+        SendBlazeReport(phpQuery);
+    }
 }
 
 private String FormatMessage(String msg, MessageType type) {
