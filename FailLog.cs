@@ -97,6 +97,7 @@ private int fMaxPlayers;
 private bool fJustConnected;
 private int fAfterPlayers;
 private int fLastUptime;
+private int fLastMaxPlayers;
 
 // Settings support
 private Dictionary<int, Type> fEasyTypeDict = null;
@@ -137,6 +138,8 @@ public FailLog() {
     fLastListPlayersTimestamp = DateTime.MinValue;
     fAfterPlayers = 0;
     fLastUptime = 0;
+    fMaxPlayers = 0;
+    fLastMaxPlayers = 0;
 
     fEasyTypeDict = new Dictionary<int, Type>();
     fEasyTypeDict.Add(0, typeof(int));
@@ -519,6 +522,7 @@ public override void OnMaxPlayers(int limit) {
     
     DebugWrite("^9Got ^bOnMaxPlayers^n", 8);
     try {
+        if (limit > fLastMaxPlayers) fLastMaxPlayers = limit;
         fMaxPlayers = limit;
     } catch (Exception e) {
         ConsoleException(e);
@@ -563,7 +567,7 @@ private void Failure(String type) {
     String utcTime = DateTime.UtcNow.ToString("yyyyMMdd_HH:mm:ss");
     String upTime = TimeSpan.FromSeconds(fLastUptime).ToString();
     String round = String.Format("{0}/{1}", (fServerInfo.CurrentRound+1), fServerInfo.TotalRounds);
-    String players = fMaxPlayers.ToString() + "/" + fLastPlayerCount + "/" + fAfterPlayers;
+    String players = Math.Max(fMaxPlayers,fLastMaxPlayers).ToString() + "/" + fLastPlayerCount + "/" + fAfterPlayers;
     String details = String.Format("\"{0},{1},{2},{3},{4},{5}\"",
         RankedServerProvider,
         ServerOwnerOrCommunity,
@@ -587,7 +591,7 @@ private void Failure(String type) {
         ServerLog(LogFile, line);
     }
 
-    if (EnableWebLog) {
+    if (EnableWebLog && type == "BLAZE_DISCONNECT") {
 
         String phpQuery = String.Format("http://dev.myrcon.com/procon/blazereport/report.php?key=HhcF93olvLgHh9UTYlqs&gsp={0}&owner={1}&forumname={2}&region={3}&game={4}&servername={5}&serverhost={6}&serverport={7}&map={8}&gamemode={8}&players={9}&uptime={10}&additionalinfo={11}",
                 RankedServerProvider,
@@ -741,6 +745,8 @@ private void Reset() {
     fLastListPlayersTimestamp = DateTime.MinValue;
     fAfterPlayers = 0;
     fLastUptime = 0;
+    fMaxPlayers = 0;
+    fLastMaxPlayers = 0;
 }
 
 
