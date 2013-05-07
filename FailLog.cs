@@ -109,7 +109,7 @@ private Dictionary<int, Type> fListStrDict = null;
 
 public int DebugLevel;
 public bool EnableLogToFile;  // if true, sandbox must not be in sandbox!
-public String LogFileSuffix;
+public String LogFile;
 public int BlazeDisconnectHeuristic;
 
 /* ===== SECTION 2 - Server Description ===== */
@@ -161,7 +161,7 @@ public FailLog() {
 
     DebugLevel = 2;
     EnableLogToFile = false;
-    LogFileSuffix = "fail.log";
+    LogFile = "fail.log";
     BlazeDisconnectHeuristic = CRASH_COUNT_HEURISTIC;
 
     /* ===== SECTION 2 - Server Description ===== */
@@ -245,7 +245,7 @@ public List<CPluginVariable> GetDisplayPluginVariables() {
         lstReturn.Add(new CPluginVariable("1 - Settings|Enable Log To File", EnableLogToFile.GetType(), EnableLogToFile));
 
         if (EnableLogToFile) {
-            lstReturn.Add(new CPluginVariable("1 - Settings|Log File Suffix", LogFileSuffix.GetType(), LogFileSuffix));
+            lstReturn.Add(new CPluginVariable("1 - Settings|Log File", LogFile.GetType(), LogFile));
         }
 
         lstReturn.Add(new CPluginVariable("1 - Settings|Blaze Disconnect Heuristic", BlazeDisconnectHeuristic.GetType(), BlazeDisconnectHeuristic));
@@ -569,12 +569,10 @@ private void Failure(String type) {
         ServerRegion,
         fServerInfo.ServerRegion + "/" + fServerInfo.ServerCountry,
         AdditionalInformation);
-    String line = String.Format("Type:{0}, UTC:{1}, Server:\"{2}\", Host:{3}, Port:{4}, Map:{5}, Mode:{6}, Players:{7}, Uptime:{8}, Details:{9}",
+    String line = String.Format("Type:{0}, UTC:{1}, Server:\"{2}\", Map:{3}, Mode:{4}, Players:{5}, Uptime:{6}, Details:{7}",
         type,
         utcTime,
         fServerInfo.ServerName,
-        fHost,
-        fPort,
         this.FriendlyMap,
         this.FriendlyMode,
         players,
@@ -583,7 +581,7 @@ private void Failure(String type) {
 
     ConsoleWrite("^8" + line);
     if (EnableLogToFile) {
-        ServerLog(LogFileSuffix, line);
+        ServerLog(LogFile, line);
     }
     // TBD - Put PHP update here?
 }
@@ -651,8 +649,8 @@ public void Log(String path, String line) {
         if (!Path.IsPathRooted(path))
             path = Path.Combine(Directory.GetParent(Application.ExecutablePath).FullName, path);
 
-        // Add timestamp
-        line = "[" + DateTime.Now.ToString("HH:mm:ss") + "] " + line + "\n";
+        // Add newline
+        line = line + "\n";
 
         using (FileStream fs = File.Open(path, FileMode.Append)) {
             Byte[] info = new UTF8Encoding(true).GetBytes(line);
@@ -664,11 +662,11 @@ public void Log(String path, String line) {
     }
 }
 
-public void ServerLog(String suffix, String line) {
-    String YYYYMMDD = DateTime.Now.ToString("yyyyMMdd"); // TBD: procon instance local time, not game server time!
-    String path = Path.Combine("Logs", fHost + "_" + fPort);
-    path = Path.Combine(path, YYYYMMDD + "_" + suffix);
-    Log(path, line);
+public void ServerLog(String file, String line) {
+    String entry = "[" + DateTime.Now.ToString("yyyyMMdd_HH:mm:ss") + "] "; // TBD: procon instance local time, not game server time!
+    entry = entry + fHost + "_" + fPort + ": " + line;
+    String path = Path.Combine("Logs", file);
+    Log(path, entry);
 }
 
 private void ServerCommand(params String[] args)
@@ -772,9 +770,9 @@ public void CheckForPluginUpdate() {
 	try {
 		XmlDocument xml = new XmlDocument();
         try {
-            xml.Load("http://myrcon.com/procon/plugins/plugin/FailLog");
+            xml.Load("https://myrcon.com/procon/plugins/plugin/FailLog");
             //WebClient c = new WebClient();
-            //String x = c.DownloadString("http://myrcon.com/procon/plugins/plugin/FailLog");
+            //String x = c.DownloadString("https://myrcon.com/procon/plugins/plugin/FailLog");
             //xml.LoadXml(x);
         } catch (System.Security.SecurityException e) {
             if (DebugLevel >= 8) ConsoleException(e);
