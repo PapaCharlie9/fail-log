@@ -450,7 +450,8 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
             Failure("GAME_SERVER_CRASH");
         } else if (fGotLogin) { // got initial login event?
             Failure("PROCON_RECONNECTED");
-        } else if (players.Count < fLastPlayerCount // latest player count lower than expected?
+        } else if (fLastPlayerCount >= 16
+          && players.Count < fLastPlayerCount // latest player count lower than expected?
           && (fLastPlayerCount - players.Count) >= Math.Min(BlazeDisconnectHeuristic, fLastPlayerCount)) {
             fAfterPlayers = players.Count;
             Failure("BLAZE_DISCONNECT");
@@ -566,7 +567,7 @@ private void Failure(String type) {
         ServerRegion,
         fServerInfo.ServerRegion + "/" + fServerInfo.ServerCountry,
         AdditionalInformation);
-    String line = String.Format("Type:{0}, UTC:{1}, Server:\"{2}\", Map:{3}, Mode:{4}, Round:{5}, Players:{6}, Uptime:{7}, Details:{7}",
+    String line = String.Format("Type:{0}, UTC:{1}, Server:\"{2}\", Map:{3}, Mode:{4}, Round:{5}, Players:{6}, Uptime:{7}, Details:{8}",
         type,
         utcTime,
         fServerInfo.ServerName,
@@ -993,12 +994,44 @@ static class FailLogUtils {
 <h2>Description</h2>
 <p>Each failure event generates a single log line. The contents of the line are divided into fields. The following table describes each of the fields and shows an example:
 <table>
-<tr><th>Field</th><th>Example</th></tr>
-<tr><td></td><td></td></tr>
+<tr><th>Field</th><th>Description</th><th>Example</th></tr>
+<tr><td>Type</td><td>A label that describes the type of failure. The types tracked are game server crashes, Procon disconnects, blaze disconnects, and network congestion to/from Procon.</td><td>BLAZE_DISCONNECT</td></tr>
+<tr><td>UTC</t><td>UTC time stamp of the plugin's detection of the failure; the actual event might have happened earlier</td><td>20130507_01:52:58</td></tr>
+<tr><td>Server</td><td>Server name per vars.serverName</td><td>&quot;CTF Noobs welcome!&quot;</td></tr>
+<tr><td>Map</td><td>Friendly map name</td><td>Noshahr Canals</td></tr>
+<tr><td>Mode</td><td>Friendly mode name</td><td>TDM</td></tr>
+<tr><td>Round</td><td>Current round/total rounds</td><td>1/2</td></tr>
+<tr><td>Players</td><td>vars.maxPlayers/previous known player count/current player count</td><td>64/63/0</td></tr>
+<tr><td>Uptime</td><td>Uptime of game server as days.hh:mm:ss</td><td>6.09:01:35</td></tr>
+<tr><td>Details</td><td>All of the information you entered in Section 2 of the settings, plus the Region and Country from serverInfo</td><td>&quot;Ranked Server Provider,Server Owner Or Community,Myrcon Forum User Name,Server Region,NAm/US,Additional Information&quot;</td></tr>
 </table>
 
-<p><b>Debug Level</b></p>
+<h2>Settings</h2>
+<p>Plugin settings are described in this section.</p>
 
+<h3>Section 1</h3>
+<p>General plugin settings.</p>
+
+<p><b>Debug Level</b>: Number from 0 to 9, default 2. Sets the amount of debug messages sent to plugin.log. Caught exceptions are logged at 3 or higher. Raw event handling is logged at 8 or higher.</p>
+
+<p><b>Enable Log To File</b>: True or False, default False. If False, logging is only to plugin.log. If True, logging is also written to the file specified in <b>Log File</b>.</p>
+
+<p><b>Log File</b>: Name of the file to use for logging. Defaults to &quot;fail.log&quot; and is stored in procon/Logs.</p>
+
+<p><b>Blaze Disconnect Heuristic</b>: Number from 16 to 64, default 24. Not every sudden drop in players is a Blaze disconnect. Also, sometimes a Blaze disconnect does not disconnect all players or they reconnect before the next listPlayers event happens. This heuristic (guess) accounts for those facts. If the new player count is less than the last known player count and the difference is greater than or equal to either this value or the last known player count, whichever is less, a Blaze disconnect will be assumed to have happened. For example, if you set this value to 24 and you have 32 players that drop to 20, no failure will be logged (32-20=12, 12 is not greater than or equal to min(24,32)). On the other hand, if your 32 players drops to 1, a failure will be logged (32-1=31, 31 is greater than min(24,32)). If you want to only detect drops to zero players, set this value to the maximum slots on your server. If the last known player count was less than 16, no detection is logged, even though a Blaze disconnect may have happened.</p>
+
+<h3>Section 2</h3>
+<p>These settings fully describe your server for logging purposes. Information important for tracking global outages and that can't be extracted from known data is included. All of this information is optional.</p>
+
+<p><b>Ranked Server Provider</b>: Name of the RSP/GSP that hosts your game server.</p>
+
+<p><b>Server Owner Or Community</b>: Your name or the name of your clan, whoever runs the server. Technically you are a 'renter' rather than an owner, but you are responsible for the game server.</p>
+
+<p><b>Myrcon forum User Name</b>: Your myrcon.com forum user name, for follow-up with you in the forum or by PM.</p>
+
+<p><b>Server Region</b>: The Country and Region known by serverInfo in automatically included, but that information is very high level, su as NAm/US. Use this setting to specify the city, state or to narrow down the region further.</p>
+
+<p><b>Additional Information</b>: These are additional details that were not anticpated at the time of writing of this plugin but that may prove useful in the future.</p>
 
 <h2>Development</h2>
 <p>This plugin is an open source project hosted on GitHub.com. The repo is located at
