@@ -610,7 +610,7 @@ private void Failure(String type) {
                 this.FriendlyMap,
                 this.FriendlyMode,
                 players,
-                upTime,
+                fLastUptime,
                 AdditionalInformation);
 
         SendBlazeReport(phpQuery);
