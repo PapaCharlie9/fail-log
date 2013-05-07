@@ -483,9 +483,9 @@ public override void OnServerInfo(CServerInfo serverInfo) {
         }
     
         // Check if serverInfo up-time is inconsistent
+        fLastUptime = fServerUptime;
         if (fServerUptime > 0 && fServerUptime > serverInfo.ServerUptime + 2) { // +2 for rounding error on server side!
             DebugWrite("OnServerInfo fServerUptime = " + fServerUptime + ", serverInfo.ServerUptime = " + serverInfo.ServerUptime, 3);
-            fLastUptime = fServerUptime;
             fServerCrashed = true;
             Failure("GAME_SERVER_CRASH");
         } else if (fGotLogin) {
@@ -993,7 +993,13 @@ static class FailLogUtils {
 <p>For BF3, this plugin logs game server crashes, layer disconnects and Blaze dumps.</p>
 
 <h2>Description</h2>
-<p>TBD</p>
+<p>Each failure event generates a single log line. The contents of the line are divided into fields. The following table describes each of the fields and shows an example:
+<table>
+<tr><th>Field</th><th>Example</th></tr>
+<tr><td></td><td></td></tr>
+</table>
+
+<p><b>Debug Level</b></p>
 
 
 <h2>Development</h2>
