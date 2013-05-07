@@ -116,6 +116,7 @@ public bool EnableWebLog;
 
 /* ===== SECTION 2 - Server Description ===== */
 
+public String GameServerType;
 public String RankedServerProvider;
 public String ServerOwnerOrCommunity;
 public String MyrconForumUserName;
@@ -171,6 +172,7 @@ public FailLog() {
 
     /* ===== SECTION 2 - Server Description ===== */
 
+    GameServerType = "BF3";
     RankedServerProvider = String.Empty;
     ServerOwnerOrCommunity = String.Empty;
     MyrconForumUserName = String.Empty;
@@ -274,7 +276,9 @@ public List<CPluginVariable> GetDisplayPluginVariables() {
 
  
         /* ===== SECTION 2 - Server Description ===== */
-        
+
+        lstReturn.Add(new CPluginVariable("2 - Server Description|Gameserver type", RankedServerProvider.GetType(), GameServerType));
+
         lstReturn.Add(new CPluginVariable("2 - Server Description|Ranked Server Provider", RankedServerProvider.GetType(), RankedServerProvider));
 
         lstReturn.Add(new CPluginVariable("2 - Server Description|Server Owner Or Community", ServerOwnerOrCommunity.GetType(), ServerOwnerOrCommunity));
@@ -591,14 +595,15 @@ private void Failure(String type) {
         ServerLog(LogFile, line);
     }
 
-    if (EnableWebLog && type == "BLAZE_DISCONNECT") {
+    if (EnableWebLog && type.CompareTo("BLAZE_DISCONNECT") == 0) {
 
-        String phpQuery = String.Format("http://dev.myrcon.com/procon/blazereport/report.php?key=HhcF93olvLgHh9UTYlqs&gsp={0}&owner={1}&forumname={2}&region={3}&game={4}&servername={5}&serverhost={6}&serverport={7}&map={8}&gamemode={8}&players={9}&uptime={10}&additionalinfo={11}",
+        String phpQuery = String.Format("http://dev.myrcon.com/procon/blazereport/report.php?key=HhcF93olvLgHh9UTYlqs&ver={0}&gsp={1}&owner={2}&forumname={3}&region={4}&game={5}&servername={6}&serverhost={7}&serverport={8}&map={9}&gamemode={10}&players={11}&uptime={12}&additionalinfo={13}",
+                GetPluginVersion(),
                 RankedServerProvider,
                 ServerOwnerOrCommunity,
                 MyrconForumUserName,
                 ServerRegion,
-                type,
+                GameServerType,
                 fServerInfo.ServerName,
                 fHost,
                 fPort,
