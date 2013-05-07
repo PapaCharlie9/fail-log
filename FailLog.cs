@@ -427,6 +427,7 @@ public override void OnLogin() {
     try {
         if (fJustConnected) return;
         fGotLogin = true;
+        fLastListPlayersTimestamp = DateTime.MinValue;
     } catch (Exception e) {
         ConsoleException(e);
     }
@@ -444,23 +445,23 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
 
         fJustConnected = false;
 
-        // Check if player count is less than expected
-        bool blazed = false;
-        if (!fServerCrashed 
-        && players.Count < fLastPlayerCount 
-        && (fLastPlayerCount - players.Count) >= Math.Min(BlazeDisconnectHeuristic, fLastPlayerCount)) {
+        // Check conditions
+        if (fServerCrashed) { // serverInfo uptime decreased more than 2 seconds?
+            Failure("GAME_SERVER_CRASH");
+        } else if (fGotLogin) { // got initial login event?
+            Failure("PROCON_RECONNECTED");
+        } else if (players.Count < fLastPlayerCount // latest player count lower than expected?
+          && (fLastPlayerCount - players.Count) >= Math.Min(BlazeDisconnectHeuristic, fLastPlayerCount)) {
             fAfterPlayers = players.Count;
             Failure("BLAZE_DISCONNECT");
-            blazed = true;
-        }
-        fLastPlayerCount = players.Count;
-
-        // Check if last list players update took longer than expected
-        if (!fServerCrashed && !blazed && fLastListPlayersTimestamp != DateTime.MinValue && DateTime.Now.Subtract(fLastListPlayersTimestamp).TotalSeconds > MAX_LIST_PLAYERS_SECS) {
+        } else if (fLastListPlayersTimestamp != DateTime.MinValue // too much time since last event?
+          && DateTime.Now.Subtract(fLastListPlayersTimestamp).TotalSeconds > MAX_LIST_PLAYERS_SECS) {
             Failure("NETWORK_CONGESTION");
         }
+        fLastPlayerCount = players.Count;
         fLastListPlayersTimestamp = DateTime.Now;
         fServerCrashed = false;
+        fGotLogin = false;
 
 
     } catch (Exception e) {
@@ -487,11 +488,8 @@ public override void OnServerInfo(CServerInfo serverInfo) {
         if (fServerUptime > 0 && fServerUptime > serverInfo.ServerUptime + 2) { // +2 for rounding error on server side!
             DebugWrite("OnServerInfo fServerUptime = " + fServerUptime + ", serverInfo.ServerUptime = " + serverInfo.ServerUptime, 3);
             fServerCrashed = true;
-            Failure("GAME_SERVER_CRASH");
-        } else if (fGotLogin) {
-            Failure("PROCON_RECONNECTED");
-            fGotLogin = false;
-        }
+            ServerCommand("admin.listPlayers", "all");
+        } 
 
         fServerInfo = serverInfo;
         fServerUptime = serverInfo.ServerUptime;
@@ -558,9 +556,8 @@ private void Failure(String type) {
         return;
     }
     String utcTime = DateTime.UtcNow.ToString("yyyyMMdd_HH:mm:ss");
-    //Match rm = Regex.Match(TimeSpan.FromSeconds(fLastUptime).ToString(), @"([0-9]+:[0-9]+:[0-9]+)");
-    //String upTime = (rm.Success) ? rm.Groups[1].Value : "?";
     String upTime = TimeSpan.FromSeconds(fLastUptime).ToString();
+    String round = String.Format("{0}/{1}", (fServerInfo.CurrentRound+1), fServerInfo.TotalRounds);
     String players = fMaxPlayers.ToString() + "/" + fLastPlayerCount + "/" + fAfterPlayers;
     String details = String.Format("\"{0},{1},{2},{3},{4},{5}\"",
         RankedServerProvider,
@@ -569,12 +566,13 @@ private void Failure(String type) {
         ServerRegion,
         fServerInfo.ServerRegion + "/" + fServerInfo.ServerCountry,
         AdditionalInformation);
-    String line = String.Format("Type:{0}, UTC:{1}, Server:\"{2}\", Map:{3}, Mode:{4}, Players:{5}, Uptime:{6}, Details:{7}",
+    String line = String.Format("Type:{0}, UTC:{1}, Server:\"{2}\", Map:{3}, Mode:{4}, Round:{5}, Players:{6}, Uptime:{7}, Details:{7}",
         type,
         utcTime,
         fServerInfo.ServerName,
         this.FriendlyMap,
         this.FriendlyMode,
+        round,
         players,
         upTime,
         details);
