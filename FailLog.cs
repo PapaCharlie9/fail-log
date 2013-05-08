@@ -623,17 +623,18 @@ private void Failure(String type, int lastPlayerCount) {
     String upTime = TimeSpan.FromSeconds(fLastUptime).ToString();
     String round = String.Format("{0}/{1}", (fServerInfo.CurrentRound+1), fServerInfo.TotalRounds);
     String players = Math.Max(fMaxPlayers,fLastMaxPlayers).ToString() + "/" + lastPlayerCount + "/" + fAfterPlayers;
-    String details = String.Format("\"{0},{1},{2},{3},{4},{5}\"",
-        RankedServerProvider,
-        ServerOwnerOrCommunity,
-        MyrconForumUserName, 
-        ServerRegion,
-        fServerInfo.ServerRegion + "/" + fServerInfo.ServerCountry,
-        AdditionalInformation);
+    String details = String.Format("\"{0},{1},{2},{3},{4},{5},{6}\"",
+        EscapeLogField(GameServerType),
+        EscapeLogField(RankedServerProvider),
+        EscapeLogField(ServerOwnerOrCommunity),
+        EscapeLogField(MyrconForumUserName), 
+        EscapeLogField(ServerRegion),
+        EscapeLogField(fServerInfo.ServerRegion + "/" + fServerInfo.ServerCountry),
+        EscapeLogField(AdditionalInformation));
     String line = String.Format("Type:{0}, UTC:{1}, Server:\"{2}\", Map:{3}, Mode:{4}, Round:{5}, Players:{6}, Uptime:{7}, Details:{8}",
         type,
         utcTime,
-        fServerInfo.ServerName,
+        EscapeLogField(fServerInfo.ServerName),
         this.FriendlyMap,
         this.FriendlyMode,
         round,
@@ -753,6 +754,10 @@ public void ServerLog(String file, String line) {
     Log(path, entry);
 }
 
+private String EscapeLogField(String input) {
+    return input.Replace("\"", "'").Replace(",", ";");
+}
+
 private String EscapeRequestString(String input)
 {
     return input.Replace("=", "").Replace("?", "").Replace("&", "").Replace("#", "");
@@ -784,6 +789,7 @@ private void SendBlazeReport(String query)
         ConsoleException(e);
     }
 }
+
 
 private void ServerCommand(params String[] args)
 {
