@@ -99,7 +99,6 @@ private int fAfterPlayers;
 private int fLastUptime;
 private int fLastMaxPlayers;
 private double fSumOfSeconds;
-private int fSumLostPlayerCounts;
 private int fHighPlayerCount;
 
 // Settings support
@@ -147,7 +146,6 @@ public FailLog() {
     fMaxPlayers = 0;
     fLastMaxPlayers = 0;
     fSumOfSeconds = 0;
-    fSumLostPlayerCounts = 0;
     fHighPlayerCount = 0;
 
     fEasyTypeDict = new Dictionary<int, Type>();
@@ -290,7 +288,7 @@ public List<CPluginVariable> GetDisplayPluginVariables() {
  
         /* ===== SECTION 2 - Server Description ===== */
 
-        lstReturn.Add(new CPluginVariable("2 - Server Description|Gameserver type", RankedServerProvider.GetType(), GameServerType));
+        lstReturn.Add(new CPluginVariable("2 - Server Description|Game Server Type", GameServerType.GetType(), GameServerType));
 
         lstReturn.Add(new CPluginVariable("2 - Server Description|Ranked Server Provider", RankedServerProvider.GetType(), RankedServerProvider));
 
@@ -371,7 +369,7 @@ private bool ValidateSettings(String strVariable, String strValue) {
 
         if (strVariable.Contains("Blaze Disconnect Heuristic Percent")) ValidateDoubleRange(ref BlazeDisconnectHeuristicPercent, "Blaze Disconnect Heuristic Percent", 33, 100, 75, false);
 
-        if (strVariable.Contains("Blaze Disconnect Window Seconds")) ValidateDoubleRange(ref BlazeDisconnectWindowSeconds, "Blaze Disconnect Window Seconds", 30, 90, 60, false);
+        if (strVariable.Contains("Blaze Disconnect Window Seconds")) ValidateDoubleRange(ref BlazeDisconnectWindowSeconds, "Blaze Disconnect Window Seconds", 30, 90, 30, false);
     
         /* ===== SECTION 2 - Exclusions ===== */
     
@@ -471,55 +469,60 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
 
         fJustConnected = false;
 
+        bool resetWindow = false;
+
         // Check conditions
         if (fServerCrashed) { // serverInfo uptime decreased more than 2 seconds?
             Failure("GAME_SERVER_RESTART", fLastPlayerCount);
+            resetWindow = true;
         } else if (fGotLogin) { // got initial login event?
             Failure("PROCON_RECONNECTED", fLastPlayerCount);
+            resetWindow = true;
         } else if (fLastListPlayersTimestamp != DateTime.MinValue) {
             double seconds = DateTime.Now.Subtract(fLastListPlayersTimestamp).TotalSeconds;
             fSumOfSeconds = fSumOfSeconds + seconds;
             if (seconds > MAX_LIST_PLAYERS_SECS) {
                 Failure("NETWORK_CONGESTION", fLastPlayerCount);
-                if (fSumOfSeconds > BlazeDisconnectWindowSeconds) {
-                    fSumOfSeconds = 0;
-                    fSumLostPlayerCounts = 0;
-                }
+                resetWindow = true;
             } else {
-                int lost = 0;
-                if (players.Count < fLastPlayerCount) {
-                    lost = fLastPlayerCount - players.Count;
-                    fSumLostPlayerCounts = fSumLostPlayerCounts + lost;
+                double current = players.Count;
+                double dLost = 0;
+                if (current < Convert.ToDouble(fLastPlayerCount)) {
+                    dLost = fLastPlayerCount - current;
                 }
-                double dLost = lost;
+                double dHighLost = 0;
+                if (current < fHighPlayerCount) {
+                    dHighLost = fHighPlayerCount - current;
+                }
                 double dLast = Math.Max(1, fLastPlayerCount); // make sure divisor is never 0
-                double sum = fSumLostPlayerCounts;
-                double high = Math.Max(1.0, fHighPlayerCount); // make sure divisor is never 0
-                DebugWrite("^9Last = " + fLastPlayerCount + ", " + " current = " + players.Count + ", lost = " + lost + ", ratio = " + (dLost*100.0/dLast).ToString("F1") + ", window = " + fSumOfSeconds + ", sum lost = " + fSumLostPlayerCounts + ", window ratio = " + (sum*100.0/high).ToString("F1"), 4);
+                double dHigh = Math.Max(1.0, fHighPlayerCount); // make sure divisor is never 0
+
+                DebugWrite("^9Last = " + fLastPlayerCount + ", " + " current = " + current + ", lost = " + dLost + ", ratio = " + (dLost*100.0/dLast).ToString("F1") + ", window = " + fSumOfSeconds + ", high  = " + fHighPlayerCount + ", high lost = " + dHighLost + ", window ratio = " + (dHighLost*100.0/dHigh).ToString("F1"), 4);
+
                 if (dLost <= dLast && (dLost*100.0/dLast) >= BlazeDisconnectHeuristicPercent) {
                     // Single interval drop is big enough to detect
                     fAfterPlayers = players.Count;
                     Failure("BLAZE_DISCONNECT", fLastPlayerCount);
-                    fSumLostPlayerCounts = 0;
-                    fSumOfSeconds = 0;
-                    fHighPlayerCount = players.Count;
+                    resetWindow = true;
                 } else if (fSumOfSeconds >= BlazeDisconnectWindowSeconds) {
-                    if (sum <= high && (sum*100.0/high) >= BlazeDisconnectHeuristicPercent) {
-                        // Time interval based sum is big enough to detect
+                    if (dHighLost <= dHigh && (dHighLost*100.0/dHigh) >= BlazeDisconnectHeuristicPercent) {
+                        // Time window based sum is big enough to detect
                         fAfterPlayers = players.Count;
-                        Failure("BLAZE_DISCONNECT", fSumLostPlayerCounts);
+                        Failure("BLAZE_DISCONNECT", fHighPlayerCount);
                     }
-                    fSumLostPlayerCounts = 0;
-                    fSumOfSeconds = 0;
-                    fHighPlayerCount = players.Count;
+                    resetWindow = true;
                 } 
             }
-        } else {
+        }
+
+        if (resetWindow) {
+            fSumOfSeconds = 0;
             fHighPlayerCount = players.Count;
         }
 
         // Update counters and flags
         fLastPlayerCount = players.Count;
+        if (players.Count > fHighPlayerCount) fHighPlayerCount = players.Count;
         fLastListPlayersTimestamp = DateTime.Now;
         fServerCrashed = false;
         fGotLogin = false;
@@ -811,7 +814,7 @@ private void Reset() {
     fMaxPlayers = 0;
     fLastMaxPlayers = 0;
     fSumOfSeconds = 0;
-    fSumLostPlayerCounts = 0;
+    fHighPlayerCount = 0;
 }
 
 
@@ -1126,6 +1129,9 @@ static class FailLogUtils {
 <tr><td>Details</td><td>All of the information you entered in Section 2 of the settings, plus the Region and Country from serverInfo</td><td>&quot;Ranked Server Provider,Server Owner Or Community,Myrcon Forum User Name,Server Region,NAm/US,Additional Information&quot;</td></tr>
 </table></p>
 
+<h3>Blaze Disconnect Failures</h3>
+<p>This plugin uses a heuristic (a guess) to decide if a loss of players indicates a Blaze disconnect failure. The loss of players is calculated on every admin.listPlayers event. These events happen at least once every 30 seconds, but may happen more frequently if you run other plugins. This means that detection of Blaze events is very dependent on your configuration. You may need to adjust the settings of this plugin to detect Blaze disconnects accurately.</p>
+
 <h2>Settings</h2>
 <p>Plugin settings are described in this section.</p>
 
@@ -1138,12 +1144,17 @@ static class FailLogUtils {
 
 <p><b>Log File</b>: Name of the file to use for logging. Defaults to &quot;fail.log&quot; and is stored in procon/Logs.</p>
 
-<p><b>Blaze Disconnect Heuristic</b>: Number from 16 to 64, default 24. Not every sudden drop in players is a Blaze disconnect. Also, sometimes a Blaze disconnect does not disconnect all players or they reconnect before the next listPlayers event happens. This heuristic (guess) accounts for those facts. If the new player count is less than the last known player count and the difference is greater than or equal to either this value or the last known player count, whichever is less, a Blaze disconnect will be assumed to have happened. For example, if you set this value to 24 and you have 32 players that drop to 20, no failure will be logged (32-20=12, 12 is not greater than or equal to min(24,32)). On the other hand, if your 32 players drops to 1, a failure will be logged (32-1=31, 31 is greater than min(24,32)). If you want to only detect drops to zero players, set this value to the maximum slots on your server. If the last known player count was less than 16, no detection is logged, even though a Blaze disconnect may have happened.</p>
+<p><b>Blaze Disconnect Heuristic Percent</b>: Number from 33 to 100, default 75. Not every sudden drop in players is a Blaze disconnect. Also, sometimes a Blaze disconnect does not disconnect all players or they reconnect before the next listPlayers event happens. This heuristic (guess) percentage accounts for those facts. The percentage is based on the ratio of the count of lost players to the last known count of players. For example, if you set this value to 75, it means any loss of 75% or more players should be treated as a Blaze disconnect. If there were 32 players before and now there are 10 players, (32-10)/32 = 69%, which is not greater than or equal to 75%, so no Blaze failure. If there were 32 players before and now there are no players, (32-0)/32 = 100%, a Blaze failure. If you want to only detect drops to zero players, set this value to 100. If the last known player count was less than 16, no detection is logged, even though a Blaze disconnect may have happened. See also <b>Blaze Disconnect Window Seconds</b>.</p>
+
+<p><b>Blaze Disconnect Window Seconds</b>: Number from 30 to 90, default 30. Normally, listPlayers events happen every 30 seconds and that is normally enough time to detect a Blaze disconnect. However, if you have lots of other plugins running, listPlayer events may happen more frequently than every 30 seconds, which may not be enough time to detect a large enough loss of players. Even if the interval between events is 30 seconds, sometimes a Blaze disconnect takes longer than 30 seconds to complete. This setting allows you to adjust the plugin to handle those situations. If you notice loss of players that you suspect are Blaze disconnects but no failure is registered, increase this value. Try 60 at first and if that isn't enough, add 15 seconds and try again, until you get to the max of 90 seconds.</p>
 
 <p><b>Enable Web Log</b>: True or False, default True. If False, no logging is sent to the web database. If True, logging is also sent to the web database.</p>
 
 <h3>Section 2</h3>
 <p>These settings fully describe your server for logging purposes. Information important for tracking global outages and that can't be extracted from known data is included. All of this information is optional.</p>
+
+
+<p><b>Game Server Type</b>: Type of game server, defaults to BF3.</p>
 
 <p><b>Ranked Server Provider</b>: Name of the RSP/GSP that hosts your game server.</p>
 
