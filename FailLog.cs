@@ -514,6 +514,8 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
                     fHighPlayerCount = players.Count;
                 } 
             }
+        } else {
+            fHighPlayerCount = players.Count;
         }
 
         // Update counters and flags
