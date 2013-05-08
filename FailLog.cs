@@ -475,7 +475,6 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
         fServerCrashed = false;
         fGotLogin = false;
 
-
     } catch (Exception e) {
         ConsoleException(e);
     }
@@ -598,20 +597,20 @@ private void Failure(String type) {
     if (EnableWebLog && type.CompareTo("BLAZE_DISCONNECT") == 0) {
 
         String phpQuery = String.Format("http://dev.myrcon.com/procon/blazereport/report.php?key=HhcF93olvLgHh9UTYlqs&ver={0}&gsp={1}&owner={2}&forumname={3}&region={4}&game={5}&servername={6}&serverhost={7}&serverport={8}&map={9}&gamemode={10}&players={11}&uptime={12}&additionalinfo={13}",
-                GetPluginVersion(),
-                RankedServerProvider,
-                ServerOwnerOrCommunity,
-                MyrconForumUserName,
-                fServerInfo.ServerRegion + "/" + fServerInfo.ServerCountry + ((!String.IsNullOrEmpty(ServerRegion)) ? "/" + ServerRegion : String.Empty),
-                GameServerType,
-                fServerInfo.ServerName,
-                fHost,
-                fPort,
-                this.FriendlyMap,
-                this.FriendlyMode,
-                players,
+                EscapeRequestString(GetPluginVersion()),
+                EscapeRequestString(RankedServerProvider),
+                EscapeRequestString(ServerOwnerOrCommunity),
+                EscapeRequestString(MyrconForumUserName),
+                EscapeRequestString(fServerInfo.ServerRegion + "/" + fServerInfo.ServerCountry + ((!String.IsNullOrEmpty(ServerRegion)) ? "/" + ServerRegion : String.Empty)),
+                EscapeRequestString(GameServerType),
+                EscapeRequestString(fServerInfo.ServerName),
+                EscapeRequestString(fHost),
+                EscapeRequestString(fPort),
+                EscapeRequestString(this.FriendlyMap),
+                EscapeRequestString(this.FriendlyMode),
+                EscapeRequestString(players),
                 fLastUptime,
-                AdditionalInformation);
+                EscapeRequestString(AdditionalInformation));
 
         SendBlazeReport(phpQuery);
 
@@ -701,6 +700,11 @@ public void ServerLog(String file, String line) {
     Log(path, entry);
 }
 
+private String EscapeRequestString(String input)
+{
+    return input.Replace("=", "").Replace("?", "").Replace("&", "").Replace("#", "");
+}
+
 private void SendBlazeReport(String query)
 {
     try
@@ -716,7 +720,7 @@ private void SendBlazeReport(String query)
         {
             if (DebugLevel >= 3) ConsoleWarn("BlazeReport didn't contain valid response!");
         }
-        else
+        else if (!String.IsNullOrEmpty(response) && response.Contains("Thank you for your Blaze Report!"))
         {
             if (DebugLevel >= 3) ConsoleWrite("BlazeReport sent successfully!");
         }
