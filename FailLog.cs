@@ -602,7 +602,7 @@ private void Failure(String type) {
                 RankedServerProvider,
                 ServerOwnerOrCommunity,
                 MyrconForumUserName,
-                ServerRegion,
+                fServerInfo.ServerRegion + "/" + fServerInfo.ServerCountry + ((!String.IsNullOrEmpty(ServerRegion)) ? "/" + ServerRegion : String.Empty),
                 GameServerType,
                 fServerInfo.ServerName,
                 fHost,
