@@ -716,6 +716,10 @@ private void SendBlazeReport(String query)
         {
             if (DebugLevel >= 3) ConsoleWarn("BlazeReport didn't contain valid response!");
         }
+        else
+        {
+            if (DebugLevel >= 3) ConsoleWrite("BlazeReport sent successfully!");
+        }
     }
     catch (Exception e)
     {
