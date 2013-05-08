@@ -98,6 +98,9 @@ private bool fJustConnected;
 private int fAfterPlayers;
 private int fLastUptime;
 private int fLastMaxPlayers;
+private double fSumOfSeconds;
+private int fSumLostPlayerCounts;
+private int fHighPlayerCount;
 
 // Settings support
 private Dictionary<int, Type> fEasyTypeDict = null;
@@ -111,7 +114,9 @@ private Dictionary<int, Type> fListStrDict = null;
 public int DebugLevel;
 public bool EnableLogToFile;  // if true, sandbox must not be in sandbox!
 public String LogFile;
-public int BlazeDisconnectHeuristic;
+public int BlazeDisconnectHeuristic; // deprecated
+public double BlazeDisconnectHeuristicPercent;
+public double BlazeDisconnectWindowSeconds;
 public bool EnableWebLog;
 
 /* ===== SECTION 2 - Server Description ===== */
@@ -141,6 +146,9 @@ public FailLog() {
     fLastUptime = 0;
     fMaxPlayers = 0;
     fLastMaxPlayers = 0;
+    fSumOfSeconds = 0;
+    fSumLostPlayerCounts = 0;
+    fHighPlayerCount = 0;
 
     fEasyTypeDict = new Dictionary<int, Type>();
     fEasyTypeDict.Add(0, typeof(int));
@@ -168,6 +176,8 @@ public FailLog() {
     EnableLogToFile = false;
     LogFile = "fail.log";
     BlazeDisconnectHeuristic = CRASH_COUNT_HEURISTIC;
+    BlazeDisconnectHeuristicPercent = 75.0;
+    BlazeDisconnectWindowSeconds = 30;
     EnableWebLog = true;
 
     /* ===== SECTION 2 - Server Description ===== */
@@ -205,7 +215,7 @@ public String GetPluginName() {
 }
 
 public String GetPluginVersion() {
-    return "1.0.0.3";
+    return "1.0.0.4";
 }
 
 public String GetPluginAuthor() {
@@ -255,7 +265,10 @@ public List<CPluginVariable> GetDisplayPluginVariables() {
             lstReturn.Add(new CPluginVariable("1 - Settings|Log File", LogFile.GetType(), LogFile));
         }
 
-        lstReturn.Add(new CPluginVariable("1 - Settings|Blaze Disconnect Heuristic", BlazeDisconnectHeuristic.GetType(), BlazeDisconnectHeuristic));
+        // deprecated: lstReturn.Add(new CPluginVariable("1 - Settings|Blaze Disconnect Heuristic", BlazeDisconnectHeuristic.GetType(), BlazeDisconnectHeuristic));
+        lstReturn.Add(new CPluginVariable("1 - Settings|Blaze Disconnect Heuristic Percent", BlazeDisconnectHeuristicPercent.GetType(), BlazeDisconnectHeuristicPercent));
+
+        lstReturn.Add(new CPluginVariable("1 - Settings|Blaze Disconnect Window Seconds", BlazeDisconnectWindowSeconds.GetType(), BlazeDisconnectWindowSeconds));
 
         lstReturn.Add(new CPluginVariable("1 - Settings|Enable Web Log", EnableWebLog.GetType(), EnableWebLog));
         
@@ -356,7 +369,9 @@ private bool ValidateSettings(String strVariable, String strValue) {
 
         if (strVariable.Contains("Debug Level")) ValidateIntRange(ref DebugLevel, "Debug Level", 0, 9, 2, false);
 
-        if (strVariable.Contains("Blaze Disconnect Heuristic")) ValidateIntRange(ref BlazeDisconnectHeuristic, "Blaze Disconnect Heuristic", 12, 64, 24, false);
+        if (strVariable.Contains("Blaze Disconnect Heuristic Percent")) ValidateDoubleRange(ref BlazeDisconnectHeuristicPercent, "Blaze Disconnect Heuristic Percent", 33, 100, 75, false);
+
+        if (strVariable.Contains("Blaze Disconnect Window Seconds")) ValidateDoubleRange(ref BlazeDisconnectWindowSeconds, "Blaze Disconnect Window Seconds", 30, 90, 60, false);
     
         /* ===== SECTION 2 - Exclusions ===== */
     
@@ -458,18 +473,47 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
 
         // Check conditions
         if (fServerCrashed) { // serverInfo uptime decreased more than 2 seconds?
-            Failure("GAME_SERVER_RESTART");
+            Failure("GAME_SERVER_RESTART", fLastPlayerCount);
         } else if (fGotLogin) { // got initial login event?
-            Failure("PROCON_RECONNECTED");
-        } else if (fLastPlayerCount >= 16
-          && players.Count < fLastPlayerCount // latest player count lower than expected?
-          && (fLastPlayerCount - players.Count) >= Math.Min(BlazeDisconnectHeuristic, fLastPlayerCount)) {
-            fAfterPlayers = players.Count;
-            Failure("BLAZE_DISCONNECT");
-        } else if (fLastListPlayersTimestamp != DateTime.MinValue // too much time since last event?
-          && DateTime.Now.Subtract(fLastListPlayersTimestamp).TotalSeconds > MAX_LIST_PLAYERS_SECS) {
-            Failure("NETWORK_CONGESTION");
+            Failure("PROCON_RECONNECTED", fLastPlayerCount);
+        } else if (fLastListPlayersTimestamp != DateTime.MinValue) {
+            double seconds = DateTime.Now.Subtract(fLastListPlayersTimestamp).TotalSeconds;
+            fSumOfSeconds = fSumOfSeconds + seconds;
+            if (seconds > MAX_LIST_PLAYERS_SECS) {
+                Failure("NETWORK_CONGESTION", fLastPlayerCount);
+                if (fSumOfSeconds > BlazeDisconnectWindowSeconds) {
+                    fSumOfSeconds = 0;
+                    fSumLostPlayerCounts = 0;
+                }
+            } else {
+                int lost = 0;
+                if (players.Count < fLastPlayerCount) {
+                    lost = fLastPlayerCount - players.Count;
+                    fSumLostPlayerCounts = fSumLostPlayerCounts + lost;
+                }
+                double dLost = lost;
+                double dLast = Math.Max(1, fLastPlayerCount); // make sure divisor is never 0
+                double sum = fSumLostPlayerCounts;
+                double high = Math.Max(1.0, fHighPlayerCount); // make sure divisor is never 0
+                DebugWrite("^9Last = " + fLastPlayerCount + ", " + " current = " + players.Count + ", lost = " + lost + ", ratio = " + (dLost*100.0/dLast).ToString("F1") + ", window = " + fSumOfSeconds + ", sum lost = " + fSumLostPlayerCounts + ", window ratio = " + (sum*100.0/high).ToString("F1"), 4);
+                if (dLost <= dLast && (dLost*100.0/dLast) >= BlazeDisconnectHeuristicPercent) {
+                    // Single interval drop is big enough to detect
+                    fAfterPlayers = players.Count;
+                    Failure("BLAZE_DISCONNECT", fLastPlayerCount);
+                } else if (fSumOfSeconds >= BlazeDisconnectWindowSeconds) {
+                    if (sum <= high && (sum*100.0/high) >= BlazeDisconnectHeuristicPercent) {
+                        // Time interval based sum is big enough to detect
+                        fAfterPlayers = players.Count;
+                        Failure("BLAZE_DISCONNECT", fSumLostPlayerCounts);
+                    }
+                    fSumLostPlayerCounts = 0;
+                    fSumOfSeconds = 0;
+                    fHighPlayerCount = players.Count;
+                } 
+            }
         }
+
+        // Update counters and flags
         fLastPlayerCount = players.Count;
         fLastListPlayersTimestamp = DateTime.Now;
         fServerCrashed = false;
@@ -562,7 +606,7 @@ public override void OnMaxPlayers(int limit) {
 
 
 
-private void Failure(String type) {
+private void Failure(String type, int lastPlayerCount) {
     if (fServerInfo == null) {
         if (DebugLevel >= 3) ConsoleWarn("Failure: fServerInfo == null!");
         return;
@@ -570,7 +614,7 @@ private void Failure(String type) {
     String utcTime = DateTime.UtcNow.ToString("yyyyMMdd_HH:mm:ss");
     String upTime = TimeSpan.FromSeconds(fLastUptime).ToString();
     String round = String.Format("{0}/{1}", (fServerInfo.CurrentRound+1), fServerInfo.TotalRounds);
-    String players = Math.Max(fMaxPlayers,fLastMaxPlayers).ToString() + "/" + fLastPlayerCount + "/" + fAfterPlayers;
+    String players = Math.Max(fMaxPlayers,fLastMaxPlayers).ToString() + "/" + lastPlayerCount + "/" + fAfterPlayers;
     String details = String.Format("\"{0},{1},{2},{3},{4},{5}\"",
         RankedServerProvider,
         ServerOwnerOrCommunity,
@@ -616,6 +660,7 @@ private void Failure(String type) {
 
     }
 }
+
 
 private String FormatMessage(String msg, MessageType type) {
     String prefix = "[^b" + GetPluginName() + "^n] ";
@@ -760,6 +805,8 @@ private void Reset() {
     fLastUptime = 0;
     fMaxPlayers = 0;
     fLastMaxPlayers = 0;
+    fSumOfSeconds = 0;
+    fSumLostPlayerCounts = 0;
 }
 
 
