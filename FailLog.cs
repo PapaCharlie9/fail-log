@@ -500,6 +500,9 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
                     // Single interval drop is big enough to detect
                     fAfterPlayers = players.Count;
                     Failure("BLAZE_DISCONNECT", fLastPlayerCount);
+                    fSumLostPlayerCounts = 0;
+                    fSumOfSeconds = 0;
+                    fHighPlayerCount = players.Count;
                 } else if (fSumOfSeconds >= BlazeDisconnectWindowSeconds) {
                     if (sum <= high && (sum*100.0/high) >= BlazeDisconnectHeuristicPercent) {
                         // Time interval based sum is big enough to detect
