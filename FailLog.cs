@@ -213,7 +213,7 @@ public String GetPluginName() {
 }
 
 public String GetPluginVersion() {
-    return "1.0.0.5";
+    return "1.0.0.6";
 }
 
 public String GetPluginAuthor() {
@@ -499,13 +499,13 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
 
                 DebugWrite("^9Last = " + fLastPlayerCount + ", " + " current = " + current + ", lost = " + dLost + ", ratio = " + (dLost*100.0/dLast).ToString("F1") + ", window = " + fSumOfSeconds + ", high  = " + fHighPlayerCount + ", high lost = " + dHighLost + ", window ratio = " + (dHighLost*100.0/dHigh).ToString("F1"), 4);
 
-                if (dLost <= dLast && (dLost*100.0/dLast) >= BlazeDisconnectHeuristicPercent) {
+                if (dLast >= 12 && dLost <= dLast && (dLost*100.0/dLast) >= BlazeDisconnectHeuristicPercent) {
                     // Single interval drop is big enough to detect
                     fAfterPlayers = players.Count;
                     Failure("BLAZE_DISCONNECT", fLastPlayerCount);
                     resetWindow = true;
                 } else if (fSumOfSeconds >= BlazeDisconnectWindowSeconds) {
-                    if (dHighLost <= dHigh && (dHighLost*100.0/dHigh) >= BlazeDisconnectHeuristicPercent) {
+                    if (dHigh >= 12 && dHighLost <= dHigh && (dHighLost*100.0/dHigh) >= BlazeDisconnectHeuristicPercent) {
                         // Time window based sum is big enough to detect
                         fAfterPlayers = players.Count;
                         Failure("BLAZE_DISCONNECT", fHighPlayerCount);
@@ -1150,7 +1150,7 @@ static class FailLogUtils {
 
 <p><b>Log File</b>: Name of the file to use for logging. Defaults to &quot;fail.log&quot; and is stored in procon/Logs.</p>
 
-<p><b>Blaze Disconnect Heuristic Percent</b>: Number from 33 to 100, default 75. Not every sudden drop in players is a Blaze disconnect. Also, sometimes a Blaze disconnect does not disconnect all players or they reconnect before the next listPlayers event happens. This heuristic (guess) percentage accounts for those facts. The percentage is based on the ratio of the count of lost players to the last known count of players. For example, if you set this value to 75, it means any loss of 75% or more players should be treated as a Blaze disconnect. If there were 32 players before and now there are 10 players, (32-10)/32 = 69%, which is not greater than or equal to 75%, so no Blaze failure. If there were 32 players before and now there are no players, (32-0)/32 = 100%, a Blaze failure. If you want to only detect drops to zero players, set this value to 100. If the last known player count was less than 16, no detection is logged, even though a Blaze disconnect may have happened. See also <b>Blaze Disconnect Window Seconds</b>.</p>
+<p><b>Blaze Disconnect Heuristic Percent</b>: Number from 33 to 100, default 75. Not every sudden drop in players is a Blaze disconnect. Also, sometimes a Blaze disconnect does not disconnect all players or they reconnect before the next listPlayers event happens. This heuristic (guess) percentage accounts for those facts. The percentage is based on the ratio of the count of lost players to the last known count of players. For example, if you set this value to 75, it means any loss of 75% or more players should be treated as a Blaze disconnect. If there were 32 players before and now there are 10 players, (32-10)/32 = 69%, which is not greater than or equal to 75%, so no Blaze failure. If there were 32 players before and now there are no players, (32-0)/32 = 100%, a Blaze failure. If you want to only detect drops to zero players, set this value to 100. If the last known player count was less than 12, no detection is logged, even though a Blaze disconnect may have happened. See also <b>Blaze Disconnect Window Seconds</b>.</p>
 
 <p><b>Blaze Disconnect Window Seconds</b>: Number from 30 to 90, default 30. Normally, listPlayers events happen every 30 seconds and that is normally enough time to detect a Blaze disconnect. However, if you have lots of other plugins running, listPlayer events may happen more frequently than every 30 seconds, which may not be enough time to detect a large enough loss of players. Even if the interval between events is 30 seconds, sometimes a Blaze disconnect takes longer than 30 seconds to complete. This setting allows you to adjust the plugin to handle those situations. If you notice loss of players that you suspect are Blaze disconnects but no failure is registered, increase this value. Try 60 at first and if that isn't enough, add 15 seconds and try again, until you get to the max of 90 seconds.</p>
 
