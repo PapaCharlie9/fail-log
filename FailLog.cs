@@ -760,7 +760,7 @@ private String EscapeLogField(String input) {
 
 private String EscapeRequestString(String input)
 {
-    return input.Replace("=", "").Replace("?", "").Replace("&", "").Replace("#", "");
+    return input.Replace("=", "").Replace("?", "").Replace("&", "").Replace("#", "").Trim();
 }
 
 private void SendBlazeReport(String query)
