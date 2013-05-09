@@ -213,7 +213,7 @@ public String GetPluginName() {
 }
 
 public String GetPluginVersion() {
-    return "1.0.0.4";
+    return "1.0.0.5";
 }
 
 public String GetPluginAuthor() {
@@ -649,7 +649,7 @@ private void Failure(String type, int lastPlayerCount) {
 
     if (EnableWebLog && type.CompareTo("BLAZE_DISCONNECT") == 0) {
 
-        String phpQuery = String.Format("http://dev.myrcon.com/procon/blazereport/report.php?key=HhcF93olvLgHh9UTYlqs&ver={0}&gsp={1}&owner={2}&forumname={3}&region={4}&game={5}&servername={6}&serverhost={7}&serverport={8}&map={9}&gamemode={10}&players={11}&uptime={12}&additionalinfo={13}",
+        String phpQuery = String.Format("http://dev.myrcon.com/procon/blazereport/report.php?key=HhcF93olvLgHh9UTYlqs&ver={0}&gsp={1}&owner={2}&contactinfo={3}&region={4}&game={5}&servername={6}&serverhost={7}&serverport={8}&map={9}&gamemode={10}&players={11}&uptime={12}&additionalinfo={13}",
                 EscapeRequestString(GetPluginVersion()),
                 EscapeRequestString(RankedServerProvider),
                 EscapeRequestString(ServerOwnerOrCommunity),
