@@ -123,7 +123,7 @@ public bool EnableWebLog;
 public String GameServerType;
 public String RankedServerProvider;
 public String ServerOwnerOrCommunity;
-public String MyrconForumUserName;
+public String ContactInfo;
 public String ServerRegion; // Should this be an enum?
 public String AdditionalInformation;
 
@@ -183,7 +183,7 @@ public FailLog() {
     GameServerType = "BF3";
     RankedServerProvider = String.Empty;
     ServerOwnerOrCommunity = String.Empty;
-    MyrconForumUserName = String.Empty;
+    ContactInfo = String.Empty;
     ServerRegion = String.Empty;
     AdditionalInformation = String.Empty;
 
@@ -294,7 +294,7 @@ public List<CPluginVariable> GetDisplayPluginVariables() {
 
         lstReturn.Add(new CPluginVariable("2 - Server Description|Server Owner Or Community", ServerOwnerOrCommunity.GetType(), ServerOwnerOrCommunity));
 
-        lstReturn.Add(new CPluginVariable("2 - Server Description|Myrcon Forum User Name", MyrconForumUserName.GetType(), MyrconForumUserName));
+        lstReturn.Add(new CPluginVariable("2 - Server Description|Contact Info", ContactInfo.GetType(), ContactInfo));
 
         lstReturn.Add(new CPluginVariable("2 - Server Description|Server Region", ServerRegion.GetType(), ServerRegion));
 
@@ -627,7 +627,7 @@ private void Failure(String type, int lastPlayerCount) {
         EscapeLogField(GameServerType),
         EscapeLogField(RankedServerProvider),
         EscapeLogField(ServerOwnerOrCommunity),
-        EscapeLogField(MyrconForumUserName), 
+        EscapeLogField(ContactInfo), 
         EscapeLogField(ServerRegion),
         EscapeLogField(fServerInfo.ServerRegion + "/" + fServerInfo.ServerCountry),
         EscapeLogField(AdditionalInformation));
@@ -653,7 +653,7 @@ private void Failure(String type, int lastPlayerCount) {
                 EscapeRequestString(GetPluginVersion()),
                 EscapeRequestString(RankedServerProvider),
                 EscapeRequestString(ServerOwnerOrCommunity),
-                EscapeRequestString(MyrconForumUserName),
+                EscapeRequestString(ContactInfo),
                 EscapeRequestString(fServerInfo.ServerRegion + "/" + fServerInfo.ServerCountry + ((!String.IsNullOrEmpty(ServerRegion)) ? "/" + ServerRegion : String.Empty)),
                 EscapeRequestString(GameServerType),
                 EscapeRequestString(fServerInfo.ServerName),
@@ -1166,7 +1166,7 @@ static class FailLogUtils {
 
 <p><b>Server Owner Or Community</b>: Your name or the name of your clan, whoever runs the server. Technically you are a 'renter' rather than an owner, but you are responsible for the game server.</p>
 
-<p><b>Myrcon forum User Name</b>: Your myrcon.com forum user name, for follow-up with you in the forum or by PM.</p>
+<p><b>Contact Info</b>: Email address, clan website or your myrcon.com forum user name, to follow-up with you if additional information is needed.</p>
 
 <p><b>Server Region</b>: The Country and Region known by serverInfo in automatically included, but that information is very high level, su as NAm/US. Use this setting to specify the city, state or to narrow down the region further.</p>
 
