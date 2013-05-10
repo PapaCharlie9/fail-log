@@ -213,7 +213,7 @@ public String GetPluginName() {
 }
 
 public String GetPluginVersion() {
-    return "1.0.0.6";
+    return "1.0.0.7";
 }
 
 public String GetPluginAuthor() {
@@ -497,7 +497,7 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
                 double dLast = Math.Max(1, fLastPlayerCount); // make sure divisor is never 0
                 double dHigh = Math.Max(1.0, fHighPlayerCount); // make sure divisor is never 0
 
-                DebugWrite("^9Last = " + fLastPlayerCount + ", " + " current = " + current + ", lost = " + dLost + ", ratio = " + (dLost*100.0/dLast).ToString("F1") + ", window = " + fSumOfSeconds + ", high  = " + fHighPlayerCount + ", high lost = " + dHighLost + ", window ratio = " + (dHighLost*100.0/dHigh).ToString("F1"), 4);
+                DebugWrite("^9Last = " + fLastPlayerCount + ", " + " current = " + current + ", lost = " + dLost + ", ratio = " + (dLost*100.0/dLast).ToString("F1") + ", window = " + fSumOfSeconds.ToString("F0") + ", high  = " + fHighPlayerCount + ", high lost = " + dHighLost + ", window ratio = " + (dHighLost*100.0/dHigh).ToString("F1"), 4);
 
                 if (dLast >= 12 && dLost <= dLast && (dLost*100.0/dLast) >= BlazeDisconnectHeuristicPercent) {
                     // Single interval drop is big enough to detect
@@ -896,10 +896,7 @@ public void CheckForPluginUpdate() {
 	try {
 		XmlDocument xml = new XmlDocument();
         try {
-            xml.Load("https://myrcon.com/procon/plugins/plugin/FailLog");
-            //WebClient c = new WebClient();
-            //String x = c.DownloadString("https://myrcon.com/procon/plugins/plugin/FailLog");
-            //xml.LoadXml(x);
+            xml.Load("https://myrcon.com/procon/plugins/report/format/xml/plugin/FailLog");
         } catch (System.Security.SecurityException e) {
             if (DebugLevel >= 8) ConsoleException(e);
             ConsoleWrite(" ");
@@ -913,17 +910,53 @@ public void CheckForPluginUpdate() {
             return;
         } 
         if (DebugLevel >= 8) ConsoleDebug("CheckForPluginUpdate: Got " + xml.BaseURI);
-		XmlNodeList rows = xml.SelectNodes("//tr");
+
+        /*
+        Example:
+        <report>
+            <id>5132671</id>
+            <plugin>
+                <id>217948094</id>
+                <uid>FailLog</uid>
+                <name>FailLog</name>
+            </plugin>
+            <version>
+                <id>965536</id>
+                <major>1</major>
+                <minor>0</minor>
+                <maintenance>0</maintenance>
+                <build>6</build>
+            </version>
+            <sum_in_use>22</sum_in_use>
+            <avg_in_use>22.0000</avg_in_use>
+            <max_in_use>22</max_in_use>
+            <min_in_use>22</min_in_use>
+            <stamp>2013-05-10 10:00:04</stamp>
+        </report>
+        */
+
+		XmlNodeList rows = xml.SelectNodes("//report");
         if (DebugLevel >= 8) ConsoleDebug("CheckForPluginUpdate: # rows = " + rows.Count);
+        if (rows.Count == 0) return;
         Dictionary<String,int> versions = new Dictionary<String,int>();
 		foreach (XmlNode tr in rows) {
-            XmlNode ver = tr.SelectSingleNode("td[1]");
-            XmlNode count = tr.SelectSingleNode("td[2]");
+            XmlNode ver = tr.SelectSingleNode("version");
+            XmlNode count = tr.SelectSingleNode("sum_in_use");
             if (ver != null && count != null) {
-                if (DebugLevel >= 8) ConsoleDebug("CheckForPluginUpdate: Version: " + ver.InnerText + ", Count: " + count.InnerText);
+                int test = 0;
+                XmlNode major = ver.SelectSingleNode("major");
+                if (!Int32.TryParse(major.InnerText, out test)) continue;
+                XmlNode minor = ver.SelectSingleNode("minor");
+                if (!Int32.TryParse(minor.InnerText, out test)) continue;
+                XmlNode maint = ver.SelectSingleNode("maintenance");
+                if (!Int32.TryParse(maint.InnerText, out test)) continue;
+                XmlNode build = ver.SelectSingleNode("build");
+                if (!Int32.TryParse(build.InnerText, out test)) continue;
+                String vt = major.InnerText + "." + minor.InnerText + "." + maint.InnerText + "." + build.InnerText;
+                if (DebugLevel >= 8) ConsoleDebug("CheckForPluginUpdate: Version: " + vt + ", Count: " + count.InnerText);
                 int n = 0;
                 if (!Int32.TryParse(count.InnerText, out n)) continue; 
-                versions[ver.InnerText] = n;
+                versions[vt] = n;
             }
 		}
 
@@ -931,7 +964,7 @@ public void CheckForPluginUpdate() {
         int usage = 0;
         String myVersion = GetPluginVersion();
         if (!versions.TryGetValue(myVersion, out usage)) {
-            DebugWrite("CheckForPluginUpdate: " + myVersion + " not found!", 8);
+            DebugWrite("CheckForPluginUpdate: my version " + myVersion + " not found!", 8);
             return;
         }
 
