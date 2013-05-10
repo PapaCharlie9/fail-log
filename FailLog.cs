@@ -113,10 +113,11 @@ private Dictionary<int, Type> fListStrDict = null;
 public int DebugLevel;
 public bool EnableLogToFile;  // if true, sandbox must not be in sandbox!
 public String LogFile;
+public bool EnableWebLog;
 public int BlazeDisconnectHeuristic; // deprecated
 public double BlazeDisconnectHeuristicPercent;
 public double BlazeDisconnectWindowSeconds;
-public bool EnableWebLog;
+public bool EnableRestartOnBlaze;
 
 /* ===== SECTION 2 - Server Description ===== */
 
@@ -177,6 +178,7 @@ public FailLog() {
     BlazeDisconnectHeuristicPercent = 75.0;
     BlazeDisconnectWindowSeconds = 30;
     EnableWebLog = true;
+    EnableRestartOnBlaze = false;
 
     /* ===== SECTION 2 - Server Description ===== */
 
@@ -263,12 +265,14 @@ public List<CPluginVariable> GetDisplayPluginVariables() {
             lstReturn.Add(new CPluginVariable("1 - Settings|Log File", LogFile.GetType(), LogFile));
         }
 
+        lstReturn.Add(new CPluginVariable("1 - Settings|Enable Web Log", EnableWebLog.GetType(), EnableWebLog));
+
         // deprecated: lstReturn.Add(new CPluginVariable("1 - Settings|Blaze Disconnect Heuristic", BlazeDisconnectHeuristic.GetType(), BlazeDisconnectHeuristic));
         lstReturn.Add(new CPluginVariable("1 - Settings|Blaze Disconnect Heuristic Percent", BlazeDisconnectHeuristicPercent.GetType(), BlazeDisconnectHeuristicPercent));
 
         lstReturn.Add(new CPluginVariable("1 - Settings|Blaze Disconnect Window Seconds", BlazeDisconnectWindowSeconds.GetType(), BlazeDisconnectWindowSeconds));
 
-        lstReturn.Add(new CPluginVariable("1 - Settings|Enable Web Log", EnableWebLog.GetType(), EnableWebLog));
+        lstReturn.Add(new CPluginVariable("1 - Settings|Enable Restart On Blaze", EnableRestartOnBlaze.GetType(), EnableRestartOnBlaze));
         
         /*
         var_name = "3 - Round Phase and Population Settings|Spelling Of Speed Names Reminder";
@@ -470,6 +474,7 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
         fJustConnected = false;
 
         bool resetWindow = false;
+        bool blazed = false;
 
         // Check conditions
         if (fServerCrashed) { // serverInfo uptime decreased more than 2 seconds?
@@ -503,12 +508,14 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
                     // Single interval drop is big enough to detect
                     fAfterPlayers = players.Count;
                     Failure("BLAZE_DISCONNECT", fLastPlayerCount);
+                    blazed = true;
                     resetWindow = true;
                 } else if (fSumOfSeconds >= BlazeDisconnectWindowSeconds) {
                     if (dHigh >= 12 && dHighLost <= dHigh && (dHighLost*100.0/dHigh) >= BlazeDisconnectHeuristicPercent) {
                         // Time window based sum is big enough to detect
                         fAfterPlayers = players.Count;
                         Failure("BLAZE_DISCONNECT", fHighPlayerCount);
+                        blazed = true;
                     }
                     resetWindow = true;
                 } 
@@ -526,6 +533,14 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
         fLastListPlayersTimestamp = DateTime.Now;
         fServerCrashed = false;
         fGotLogin = false;
+
+        // Check for shutdown
+        if (blazed && EnableRestartOnBlaze && players.Count == 0) {
+            ConsoleWarn(" ");
+            ConsoleWarn("^8RESTARTING GAME SERVER WITH ADMIN SHUTDOWN!");
+            ConsoleWarn(" ");
+            ServerCommand("admin.shutDown");
+        }
 
     } catch (Exception e) {
         ConsoleException(e);
@@ -1183,11 +1198,13 @@ static class FailLogUtils {
 
 <p><b>Log File</b>: Name of the file to use for logging. Defaults to &quot;fail.log&quot; and is stored in procon/Logs.</p>
 
+<p><b>Enable Web Log</b>: True or False, default True. If False, no logging is sent to the web database. If True, logging is also sent to the web database.</p>
+
 <p><b>Blaze Disconnect Heuristic Percent</b>: Number from 33 to 100, default 75. Not every sudden drop in players is a Blaze disconnect. Also, sometimes a Blaze disconnect does not disconnect all players or they reconnect before the next listPlayers event happens. This heuristic (guess) percentage accounts for those facts. The percentage is based on the ratio of the count of lost players to the last known count of players. For example, if you set this value to 75, it means any loss of 75% or more players should be treated as a Blaze disconnect. If there were 32 players before and now there are 10 players, (32-10)/32 = 69%, which is not greater than or equal to 75%, so no Blaze failure. If there were 32 players before and now there are no players, (32-0)/32 = 100%, a Blaze failure. If you want to only detect drops to zero players, set this value to 100. If the last known player count was less than 12, no detection is logged, even though a Blaze disconnect may have happened. See also <b>Blaze Disconnect Window Seconds</b>.</p>
 
 <p><b>Blaze Disconnect Window Seconds</b>: Number from 30 to 90, default 30. Normally, listPlayers events happen every 30 seconds and that is normally enough time to detect a Blaze disconnect. However, if you have lots of other plugins running, listPlayer events may happen more frequently than every 30 seconds, which may not be enough time to detect a large enough loss of players. Even if the interval between events is 30 seconds, sometimes a Blaze disconnect takes longer than 30 seconds to complete. This setting allows you to adjust the plugin to handle those situations. If you notice loss of players that you suspect are Blaze disconnects but no failure is registered, increase this value. Try 60 at first and if that isn't enough, add 15 seconds and try again, until you get to the max of 90 seconds.</p>
 
-<p><b>Enable Web Log</b>: True or False, default True. If False, no logging is sent to the web database. If True, logging is also sent to the web database.</p>
+<p><b>Enable Restart On Blaze</b>: True or False, default False. If True, the game server will be restarted with an admin.shutDown command when a Blaze disconnect is detected <b>and</b> the remaining number of players is zero. Use with caution!</p>
 
 <h3>Section 2</h3>
 <p>These settings fully describe your server for logging purposes. Information important for tracking global outages and that can't be extracted from known data is included. All of this information is optional.</p>
