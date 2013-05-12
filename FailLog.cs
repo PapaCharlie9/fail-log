@@ -453,17 +453,26 @@ namespace PRoConEvents
             {
                 /* ===== SECTION 1 - Settings ===== */
 
-                if (strVariable.Contains("Debug Level")) ValidateIntRange(ref DebugLevel, "Debug Level", 0, 9, 2, false);
-
-                if (strVariable.Contains("Blaze Disconnect Heuristic Percent")) ValidateDoubleRange(ref BlazeDisconnectHeuristicPercent, "Blaze Disconnect Heuristic Percent", 33, 100, 75, false);
-
-                if (strVariable.Contains("Blaze Disconnect Window Seconds")) ValidateDoubleRange(ref BlazeDisconnectWindowSeconds, "Blaze Disconnect Window Seconds", 30, 90, 30, false);
-
-                if (strVariable.Contains("SMTP Port")) ValidateIntRange(ref SMTPPort, "SMTP Port", 0, 65535, 25, false);
-
-                /* ===== SECTION 2 - Exclusions ===== */
-
-                // All strings, no validation needed so far
+                if (strVariable.Contains("Debug Level"))
+                {
+                    ValidateIntRange(ref DebugLevel, "Debug Level", 0, 9, 2, false);
+                }
+                else if (strVariable.Contains("Blaze Disconnect Heuristic Percent"))
+                {
+                    ValidateDoubleRange(ref BlazeDisconnectHeuristicPercent, "Blaze Disconnect Heuristic Percent", 33, 100, 75, false);
+                }
+                else if (strVariable.Contains("Blaze Disconnect Window Seconds"))
+                {
+                    ValidateDoubleRange(ref BlazeDisconnectWindowSeconds, "Blaze Disconnect Window Seconds", 30, 90, 30, false);
+                }
+                else if (strVariable.Contains("SMTP Port"))
+                {
+                    ValidateIntRange(ref SMTPPort, "SMTP Port", 0, 65535, 25, false);
+                }
+                else if (strVariable.Contains("Battlelog Link"))
+                {
+                    ValidateBattlelogServerLink(ref BattlelogLink, "Battlelog Link", String.Empty);
+                }
             }
             catch (Exception e)
             {
@@ -1227,6 +1236,16 @@ namespace PRoConEvents
             {
                 String zero = (zeroOK) ? " or equal to 0" : String.Empty;
                 ConsoleError("^b" + propName + "^n must be greater than or equal to " + min + " and less than or equal to " + max + zero + ", was set to " + val + ", corrected to " + def);
+                val = def;
+                return;
+            }
+        }
+
+        private void ValidateBattlelogServerLink(ref String val, String propName, String def)
+        {
+            if (!val.Contains("http://battlelog.battlefield.com/bf3/servers/show/") && val.CompareTo(String.Empty) != 0)
+            {
+                ConsoleError("^b" + propName + "^n is no valid Battlelog server link, was set to " + val + ", corrected to " + def);
                 val = def;
                 return;
             }
