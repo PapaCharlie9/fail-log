@@ -27,6 +27,8 @@ using System.Collections.Generic;
 using System.Collections;
 using System.Net;
 using System.Web;
+using System.Net.Mail;
+using System.Net.Mime;
 using System.Data;
 using System.Threading;
 using System.Timers;
@@ -100,6 +102,7 @@ private int fLastUptime;
 private int fLastMaxPlayers;
 private double fSumOfSeconds;
 private int fHighPlayerCount;
+private bool fRestartInitiated;
 
 // Settings support
 private Dictionary<int, Type> fEasyTypeDict = null;
@@ -118,6 +121,8 @@ public int BlazeDisconnectHeuristic; // deprecated
 public double BlazeDisconnectHeuristicPercent;
 public double BlazeDisconnectWindowSeconds;
 public bool EnableRestartOnBlaze;
+public int RestartOnBlazeDelay;
+public bool EnableEmailOnBlaze;
 
 /* ===== SECTION 2 - Server Description ===== */
 
@@ -127,6 +132,18 @@ public String ServerOwnerOrCommunity;
 public String ContactInfo;
 public String ServerRegion; // Should this be an enum?
 public String AdditionalInformation;
+
+/* ===== SECTION 3 - Email Settings ===== */
+
+public List<String> EmailRecipients;
+public String EmailSender;
+public String EmailSubject;
+public List<String> EmailMessage;
+public String SMTPHostname;
+public int SMTPPort;
+public bool SMTPUseSSL;
+public String SMTPUsername;
+public String SMTPPassword;
 
 /* Constructor */
 
@@ -148,6 +165,7 @@ public FailLog() {
     fLastMaxPlayers = 0;
     fSumOfSeconds = 0;
     fHighPlayerCount = 0;
+    fRestartInitiated = false;
 
     fEasyTypeDict = new Dictionary<int, Type>();
     fEasyTypeDict.Add(0, typeof(int));
@@ -179,6 +197,8 @@ public FailLog() {
     BlazeDisconnectWindowSeconds = 30;
     EnableWebLog = true;
     EnableRestartOnBlaze = false;
+    RestartOnBlazeDelay = 0;
+    EnableEmailOnBlaze = false;
 
     /* ===== SECTION 2 - Server Description ===== */
 
@@ -189,6 +209,32 @@ public FailLog() {
     ServerRegion = String.Empty;
     AdditionalInformation = String.Empty;
 
+    /* ===== SECTION 3 - Email Settings ===== */
+
+    EmailRecipients = new List<String>();
+    EmailSender = String.Empty;
+    EmailSubject = "FailLog - Server %servername% blazed (%time%)!";
+
+    EmailMessage = new List<String>();
+    EmailMessage.Add("<h2 align=\"center\">FailLog - BlazeReport</h2>");
+    EmailMessage.Add("<p>Your server '%servername%' (%serverip%:%serverport%) just blazed!<br />");
+    EmailMessage.Add("Here's some information about the Blaze:</p>");
+    EmailMessage.Add("<table border=\"1\">");
+    EmailMessage.Add("<tr><th>Field</th><th>Value</th></tr>");
+    EmailMessage.Add("<tr><td align=\"center\">UTC</td><td align=\"center\">%time%</td></tr>");
+    EmailMessage.Add("<tr><td align=\"center\">Server</td><td align=\"center\">%servername%</td></tr>");
+    EmailMessage.Add("<tr><td align=\"center\">Players</td><td align=\"center\">%playercount%</td></tr>");
+    EmailMessage.Add("<tr><td align=\"center\">Map</td><td align=\"center\">%map%</td></tr>");
+    EmailMessage.Add("<tr><td align=\"center\">Gamemode</td><td align=\"center\">%gamemode%</td></tr>");
+    EmailMessage.Add("<tr><td align=\"center\">Round</td><td align=\"center\">%round%</td></tr>");
+    EmailMessage.Add("<tr><td align=\"center\">Uptime</td><td align=\"center\">%uptime%</td></tr>");
+    EmailMessage.Add("</table>");
+
+    SMTPHostname = String.Empty;
+    SMTPPort = 25;
+    SMTPUseSSL = false;
+    SMTPUsername = String.Empty;
+    SMTPPassword = String.Empty;
 }
 
 // Properties
@@ -215,7 +261,7 @@ public String GetPluginName() {
 }
 
 public String GetPluginVersion() {
-    return "1.0.0.7";
+    return "1.0.0.8";
 }
 
 public String GetPluginAuthor() {
@@ -273,22 +319,13 @@ public List<CPluginVariable> GetDisplayPluginVariables() {
         lstReturn.Add(new CPluginVariable("1 - Settings|Blaze Disconnect Window Seconds", BlazeDisconnectWindowSeconds.GetType(), BlazeDisconnectWindowSeconds));
 
         lstReturn.Add(new CPluginVariable("1 - Settings|Enable Restart On Blaze", EnableRestartOnBlaze.GetType(), EnableRestartOnBlaze));
-        
-        /*
-        var_name = "3 - Round Phase and Population Settings|Spelling Of Speed Names Reminder";
-        var_type = "enum." + var_name + "(" + String.Join("|", Enum.GetNames(typeof(Speed))) + ")";
 
-        lstReturn.Add(new CPluginVariable(var_name, var_type, Enum.GetName(typeof(Speed), SpellingOfSpeedNamesReminder)));
-        */
+        if (EnableRestartOnBlaze)
+        {
+            lstReturn.Add(new CPluginVariable("1 - Settings|Restart On Blaze Delay", RestartOnBlazeDelay.GetType(), RestartOnBlazeDelay));
+        }
 
- /*
-
-        var_name = "4 - Scrambler|Scramble By";
-        var_type = "enum." + var_name + "(" + String.Join("|", Enum.GetNames(typeof(DefineStrong))) + ")";
-        
-        lstReturn.Add(new CPluginVariable(var_name, var_type, Enum.GetName(typeof(DefineStrong), ScrambleBy)));
- */
-
+        lstReturn.Add(new CPluginVariable("1 - Settings|Enable Email On Blaze", EnableEmailOnBlaze.GetType(), EnableEmailOnBlaze));
  
         /* ===== SECTION 2 - Server Description ===== */
 
@@ -303,6 +340,29 @@ public List<CPluginVariable> GetDisplayPluginVariables() {
         lstReturn.Add(new CPluginVariable("2 - Server Description|Server Region", ServerRegion.GetType(), ServerRegion));
 
         lstReturn.Add(new CPluginVariable("2 - Server Description|Additional Information", AdditionalInformation.GetType(), AdditionalInformation));
+
+        /* ===== SECTION 3 - Email Settings ===== */
+
+        if (EnableEmailOnBlaze)
+        {
+            lstReturn.Add(new CPluginVariable("3 - Email Settings|Email Recipients", typeof(String[]), EmailRecipients.ToArray()));
+
+            lstReturn.Add(new CPluginVariable("3 - Email Settings|Email Sender", EmailSender.GetType(), EmailSender));
+
+            lstReturn.Add(new CPluginVariable("3 - Email Settings|Email Subject", EmailSubject.GetType(), EmailSubject));
+
+            lstReturn.Add(new CPluginVariable("3 - Email Settings|Email Message", typeof(String[]), EmailMessage.ToArray()));
+
+            lstReturn.Add(new CPluginVariable("3 - Email Settings|SMTP Hostname", SMTPHostname.GetType(), SMTPHostname));
+
+            lstReturn.Add(new CPluginVariable("3 - Email Settings|SMTP Port", SMTPPort.GetType(), SMTPPort));
+
+            lstReturn.Add(new CPluginVariable("3 - Email Settings|SMTP Use SSL", SMTPUseSSL.GetType(), SMTPUseSSL));
+
+            lstReturn.Add(new CPluginVariable("3 - Email Settings|SMTP Username", SMTPUsername.GetType(), SMTPUsername));
+
+            lstReturn.Add(new CPluginVariable("3 - Email Settings|SMTP Password", SMTPPassword.GetType(), SMTPPassword));
+        }
 
     } catch (Exception e) {
         ConsoleException(e);
@@ -350,6 +410,14 @@ public void SetPluginVariable(String strVariable, String strValue) {
                 } else {
                     field.SetValue(this, false);
                 }
+            } else if (fieldType.Equals(typeof(List<String>))) {
+                String[] decodedArray = CPluginVariable.DecodeStringArray(strValue);
+                List<String> decodedList = new List<String>();
+                foreach (String arrayLine in decodedArray)
+                {
+                    decodedList.Add(arrayLine);
+                }
+                field.SetValue(this, decodedList);           
             } else {
                 if (DebugLevel >= 8) ConsoleDebug("Unknown var " + propertyName + " with type " + fieldType);
             }
@@ -374,6 +442,8 @@ private bool ValidateSettings(String strVariable, String strValue) {
         if (strVariable.Contains("Blaze Disconnect Heuristic Percent")) ValidateDoubleRange(ref BlazeDisconnectHeuristicPercent, "Blaze Disconnect Heuristic Percent", 33, 100, 75, false);
 
         if (strVariable.Contains("Blaze Disconnect Window Seconds")) ValidateDoubleRange(ref BlazeDisconnectWindowSeconds, "Blaze Disconnect Window Seconds", 30, 90, 30, false);
+
+        if (strVariable.Contains("SMTP Port")) ValidateIntRange(ref SMTPPort, "SMTP Port", 0, 65535, 25, false);
     
         /* ===== SECTION 2 - Exclusions ===== */
     
@@ -536,10 +606,32 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
 
         // Check for shutdown
         if (blazed && EnableRestartOnBlaze && players.Count == 0) {
-            ConsoleWarn(" ");
-            ConsoleWarn("^8RESTARTING GAME SERVER WITH ADMIN SHUTDOWN!");
-            ConsoleWarn(" ");
-            ServerCommand("admin.shutDown");
+            if (!fRestartInitiated)
+            {
+                ConsoleWarn(" ");
+                ConsoleWarn("^8RESTARTING GAME SERVER WITH ADMIN SHUTDOWN" + (RestartOnBlazeDelay >= 0 ? " AFTER " + RestartOnBlazeDelay + " SECONDS" : String.Empty) + "!");
+                ConsoleWarn(" ");
+
+                Thread restartThread = new Thread(
+                    delegate()
+                    {
+                        Thread.Sleep(RestartOnBlazeDelay * 1000);
+                        ConsoleWarn(" ");
+                        ConsoleWarn("^8RESTARTING GAME SERVER WITH ADMIN SHUTDOWN!");
+                        ConsoleWarn(" ");
+                        ServerCommand("admin.shutDown");
+                    }
+                );
+                restartThread.IsBackground = true;
+                restartThread.Name = "FailLog - RestartThread";
+                restartThread.Start();
+            }
+            else
+            {
+                ConsoleWarn(" ");
+                ConsoleWarn("^8SERVER RESTART ALREADY INITIATED!");
+                ConsoleWarn(" ");
+            }
         }
 
     } catch (Exception e) {
@@ -682,6 +774,63 @@ private void Failure(String type, int lastPlayerCount) {
 
         SendBlazeReport(phpQuery);
 
+    }
+
+    if (EnableEmailOnBlaze && type.CompareTo("BLAZE_DISCONNECT") == 0)
+    {
+        Thread mailSendThread = new Thread(
+            delegate()
+            {
+
+                try
+                {
+                    if (DebugLevel >= 4) ConsoleWrite("Preparing BlazeReport-email...");
+
+                    SmtpClient smtpClient = new SmtpClient(SMTPHostname, SMTPPort);
+                    smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
+                    smtpClient.UseDefaultCredentials = false;
+                    smtpClient.Credentials = new NetworkCredential(SMTPUsername, SMTPPassword);
+                    smtpClient.EnableSsl = SMTPUseSSL;
+                    smtpClient.Timeout = 30000;
+
+                    MailMessage mailMessage = new MailMessage();
+                    mailMessage.From = new MailAddress(EmailSender, "FailLog - " + EmailSender);
+                    foreach (String address in EmailRecipients)
+                    {
+                        mailMessage.To.Add(new MailAddress(address, address));
+                    }
+                    mailMessage.Subject = EmailSubject.Replace("%servername%", fServerInfo.ServerName).Replace("%serverip%", fHost).Replace("%serverport%", fPort).Replace("%time%", utcTime).Replace("%playercount%", players).Replace("%map%", this.FriendlyMap).Replace("%gamemode%", this.FriendlyMode).Replace("%round%", round).Replace("%uptime%", upTime);
+                    mailMessage.SubjectEncoding = System.Text.Encoding.UTF8;
+                    mailMessage.Body = String.Empty;
+                    foreach (String bodyLine in EmailMessage)
+                    {
+                        mailMessage.Body += bodyLine.Replace("%servername%", fServerInfo.ServerName).Replace("%serverip%", fHost).Replace("%serverport%", fPort).Replace("%time%", utcTime).Replace("%playercount%", players).Replace("%map%", this.FriendlyMap).Replace("%gamemode%", this.FriendlyMode).Replace("%round%", round).Replace("%uptime%", upTime);
+                    }
+                    mailMessage.BodyEncoding = System.Text.Encoding.UTF8;
+                    mailMessage.IsBodyHtml = true;
+                    mailMessage.DeliveryNotificationOptions = DeliveryNotificationOptions.OnFailure;
+                    mailMessage.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(mailMessage.Body, new ContentType("text/html")));
+
+                    if (DebugLevel >= 7)
+                    {
+                        ConsoleWrite("BlazeReport-email:");
+                        ConsoleWrite("Subject: " + mailMessage.Subject);
+                        ConsoleWrite("Body: " + mailMessage.Body);
+                    }
+
+                    smtpClient.Send(mailMessage);
+
+                    if (DebugLevel >= 3) ConsoleWrite("BlazeReport-email sent successfully!");
+                }
+                catch (Exception e)
+                {
+                    if (DebugLevel >= 3) ConsoleError("Exception while sending BlazeReport-email");
+                    ConsoleException(e);
+                }
+            });
+        mailSendThread.IsBackground = true;
+        mailSendThread.Name = "FailLog - MailSendThread";
+        mailSendThread.Start();
     }
 }
 
@@ -836,6 +985,7 @@ private void Reset() {
     fLastMaxPlayers = 0;
     fSumOfSeconds = 0;
     fHighPlayerCount = 0;
+    fRestartInitiated = false;
 }
 
 
