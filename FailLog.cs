@@ -615,7 +615,10 @@ public override void OnListPlayers(List<CPlayerInfo> players, CPlayerSubset subs
                 Thread restartThread = new Thread(
                     delegate()
                     {
-                        Thread.Sleep(RestartOnBlazeDelay * 1000);
+                        if (RestartOnBlazeDelay > 0)
+                        {
+                            Thread.Sleep(RestartOnBlazeDelay * 1000);
+                        }
                         ConsoleWarn(" ");
                         ConsoleWarn("^8RESTARTING GAME SERVER WITH ADMIN SHUTDOWN!");
                         ConsoleWarn(" ");
@@ -1356,6 +1359,10 @@ static class FailLogUtils {
 
 <p><b>Enable Restart On Blaze</b>: True or False, default False. If True, the game server will be restarted with an admin.shutDown command when a Blaze disconnect is detected <b>and</b> the remaining number of players is zero. Use with caution!</p>
 
+<p><b>Restart On Blaze Delay</b>: Number, default 0. Time in seconds to wait before invoking the admin.shutDown command after a Blaze disconnect. Use with caution, since most servers get messed up or don't save progress properly after a Blaze disconnect, so instant restarts would be advised. Setting it to 0 instantly executes the command.</p>
+
+<p><b>Enable Email On Blaze</b>: True or False, default False. If True, the plugin will send a notification-email if you server blazes (see settings below). Make sure to disable the sandbox or allow SMTP-connections and your mailserver + mailserver-port in the trusted hosts.</p>
+
 <h3>Section 2</h3>
 <p>These settings fully describe your server for logging purposes. Information important for tracking global outages and that can't be extracted from known data is included. All of this information is optional.</p>
 
@@ -1371,6 +1378,28 @@ static class FailLogUtils {
 <p><b>Server Region</b>: The Country and Region known by serverInfo in automatically included, but that information is very high level, su as NAm/US. Use this setting to specify the city, state or to narrow down the region further.</p>
 
 <p><b>Additional Information</b>: These are additional details that were not anticpated at the time of writing of this plugin but that may prove useful in the future.</p>
+
+<h3>Section 3</h3>
+<p>These settings configure the BlazeReport-mail being sent. The following values can be entered as wildcards at the email-subject and email-body and will be replaced: %servername%, %serverip%, %serverport%, %utc%, %players%, %map%, %gamemode%, %round%, %uptime%.</p>
+
+
+<p><b>Email Recipients</b>: List of email-addresses to send the notifications to, one each line.</p>
+
+<p><b>Email Sender</b>: Email-Address being displayed in the 'From:' field.</p>
+
+<p><b>Email Subject</b>: Subject of the notification-email. You can use the values listed above to add information about the BlazeReport.</p>
+
+<p><b>Email Message</b>: Body of the BlazeReport-email, can be fully styled with HTML. You can use the values listed above to add information about the BlazeReport.</p>
+
+<p><b>SMTP Hostname</b>: Hostname/IP-Address of the SMTP-server used to send email.</p>
+
+<p><b>SMTP Port</b>: Number between 0 and 65535, default 25. Port of the SMTP-Server used to send email.</p>
+
+<p><b>SMTP Use SSL</b>: True of False, default false. Toggles the usage of SSL for the connection to your SMTP-server.</p>
+
+<p><b>SMTP Username</b>: Username used to identify with your SMTP-server.</p>
+
+<p><b>SMTP Password</b>: Password used to identify with your SMTP-server.</p>
 
 <h2>Development</h2>
 <p>This plugin is an open source project hosted on GitHub.com. The repo is located at
