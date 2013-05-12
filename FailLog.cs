@@ -20,31 +20,31 @@ DEALINGS IN THE SOFTWARE.
 */
 
 using System;
-using System.IO;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Collections;
-using System.Net;
-using System.Web;
+using System.ComponentModel;
+using System.Data;
+using System.Diagnostics;
+using System.IO;
 using System.Net.Mail;
 using System.Net.Mime;
-using System.Data;
+using System.Net;
+using System.Reflection;
+using System.Text.RegularExpressions;
+using System.Text;
 using System.Threading;
 using System.Timers;
-using System.Diagnostics;
-using System.ComponentModel;
-using System.Reflection;
-using System.Xml;
+using System.Web;
 using System.Windows.Forms;
+using System.Xml;
 
 using PRoCon.Core;
-using PRoCon.Core.Plugin;
-using PRoCon.Core.Plugin.Commands;
-using PRoCon.Core.Players;
-using PRoCon.Core.Players.Items;
 using PRoCon.Core.Battlemap;
 using PRoCon.Core.Maps;
+using PRoCon.Core.Players.Items;
+using PRoCon.Core.Players;
+using PRoCon.Core.Plugin.Commands;
+using PRoCon.Core.Plugin;
 
 namespace PRoConEvents
 {
@@ -130,6 +130,7 @@ namespace PRoConEvents
         public String ServerOwnerOrCommunity;
         public String ContactInfo;
         public String ServerRegion; // Should this be an enum?
+        public String BattlelogLink;
         public String AdditionalInformation;
 
         /* ===== SECTION 3 - Email Settings ===== */
@@ -209,6 +210,7 @@ namespace PRoConEvents
             ServerOwnerOrCommunity = String.Empty;
             ContactInfo = String.Empty;
             ServerRegion = String.Empty;
+            BattlelogLink = String.Empty;
             AdditionalInformation = String.Empty;
 
             /* ===== SECTION 3 - Email Settings ===== */
@@ -331,6 +333,8 @@ namespace PRoConEvents
                 lstReturn.Add(new CPluginVariable("2 - Server Description|Contact Info", ContactInfo.GetType(), ContactInfo));
 
                 lstReturn.Add(new CPluginVariable("2 - Server Description|Server Region", ServerRegion.GetType(), ServerRegion));
+
+                lstReturn.Add(new CPluginVariable("2 - Server Description|Battlelog Link", BattlelogLink.GetType(), BattlelogLink));
 
                 lstReturn.Add(new CPluginVariable("2 - Server Description|Additional Information", AdditionalInformation.GetType(), AdditionalInformation));
 
@@ -885,13 +889,14 @@ namespace PRoConEvents
             String upTime = TimeSpan.FromSeconds(fLastUptime).ToString();
             String round = String.Format("{0}/{1}", (fServerInfo.CurrentRound + 1), fServerInfo.TotalRounds);
             String players = Math.Max(fMaxPlayers, fLastMaxPlayers).ToString() + "/" + lastPlayerCount + "/" + fAfterPlayers;
-            String details = String.Format("\"{0},{1},{2},{3},{4},{5},{6}\"",
+            String details = String.Format("\"{0},{1},{2},{3},{4},{5},{6},{7}\"",
                 EscapeLogField(GameServerType),
                 EscapeLogField(RankedServerProvider),
                 EscapeLogField(ServerOwnerOrCommunity),
                 EscapeLogField(ContactInfo),
                 EscapeLogField(ServerRegion),
                 EscapeLogField(fServerInfo.ServerRegion + "/" + fServerInfo.ServerCountry),
+                EscapeLogField(BattlelogLink),
                 EscapeLogField(AdditionalInformation));
             String line = String.Format("Type:{0}, UTC:{1}, Server:\"{2}\", Map:{3}, Mode:{4}, Round:{5}, Players:{6}, Uptime:{7}, Details:{8}",
                 type,
@@ -1092,6 +1097,11 @@ namespace PRoConEvents
         private String EscapeRequestString(String input)
         {
             return input.Replace("=", "").Replace("?", "").Replace("&", "").Replace("#", "").Trim();
+        }
+
+        private String EncodeBase64(String input)
+        {
+            return Convert.ToBase64String(Encoding.UTF8.GetBytes(input));
         }
 
         private void SendBlazeReport(String query)
@@ -1501,6 +1511,8 @@ namespace PRoConEvents
 <p><b>Contact Info</b>: Email address, clan website or your myrcon.com forum user name, to follow-up with you if additional information is needed.</p>
 
 <p><b>Server Region</b>: The Country and Region known by serverInfo in automatically included, but that information is very high level, su as NAm/US. Use this setting to specify the city, state or to narrow down the region further.</p>
+
+<p><b>Battlelog Link</b>: Link to your server at Battlelog (e.g. http://battlelog.battlefield.com/bf3/servers/show/5474dcd7-6331-402e-a874-c0861c646162/PRoCon-Plugin-Testserver/). Will be added to the BlazeReport-overview page if available.</p>
 
 <p><b>Additional Information</b>: These are additional details that were not anticpated at the time of writing of this plugin but that may prove useful in the future.</p>
 
