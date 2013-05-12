@@ -100,6 +100,8 @@ private int fLastUptime;
 private int fLastMaxPlayers;
 private double fSumOfSeconds;
 private int fHighPlayerCount;
+private Hashtable fConfigSettings;
+private Dictionary<String,DateTime> fConfigTimestamp;
 
 // Settings support
 private Dictionary<int, Type> fEasyTypeDict = null;
@@ -148,6 +150,8 @@ public FailLog() {
     fLastMaxPlayers = 0;
     fSumOfSeconds = 0;
     fHighPlayerCount = 0;
+    fConfigSettings = new Hashtable();
+    fConfigTimestamp = new Dictionary<String,DateTime>();
 
     fEasyTypeDict = new Dictionary<int, Type>();
     fEasyTypeDict.Add(0, typeof(int));
@@ -215,7 +219,7 @@ public String GetPluginName() {
 }
 
 public String GetPluginVersion() {
-    return "1.0.0.7";
+    return "1.0.0.8";
 }
 
 public String GetPluginAuthor() {
@@ -414,7 +418,47 @@ public void OnPluginLoaded(String strHostName, String strPort, String strPRoConV
         "OnLogin",
         "OnServerInfo",
         "OnListPlayers",
-        "OnMaxPlayers"
+        "OnMaxPlayers",
+
+        // Configuration events
+        "OnVersion",
+        "OnServerName",
+        "OnServerDescription",
+        "OnServerMessage",
+        "OnPunkbuster",
+        "OnRanked",
+        "OnIdleTimeout",
+        "OnIdleBanRounds",
+        "OnRoundRestartPlayerCount",
+        "OnRoundStartPlayerCount",
+        "OnGameModeCounter",
+        "OnCtfRoundTimeModifier",
+        "OnRoundLockdownCountdown",
+        "OnRoundWarmupTimeout",
+        "OnPremiumStatus",        
+        "OnGunMasterWeaponsPreset",        
+        "OnVehicleSpawnAllowed",
+        "OnVehicleSpawnDelay",
+        "OnBulletDamage",
+        "OnOnlySquadLeaderSpawn",
+        "OnSoldierHealth",
+        "OnPlayerManDownTime",
+        "OnPlayerRespawnTime",
+        "OnHud",
+        "OnNameTag",
+        "OnFriendlyFire",
+        "OnUnlockMode",
+        "OnTeamBalance",
+        "OnKillCam",
+        "OnMiniMap",
+        "OnCrossHair",
+        "On3dSpotting",
+        "OnMiniMapSpotting",
+        "OnThirdPersonVehicleCameras", 
+        "OnTeamKillCountForKick",
+        "OnTeamKillValueIncrease",
+        "OnTeamKillValueDecreasePerSecond",
+        "OnTeamKillValueForKick"
     );
 }
 
@@ -588,6 +632,8 @@ public override void OnServerInfo(CServerInfo serverInfo) {
 
 
 public override void OnMaxPlayers(int limit) {
+    UpdateConfig("vars_maxPlayers", limit);
+
     if (!fIsEnabled) return;
     
     DebugWrite("^9Got ^bOnMaxPlayers^n", 8);
@@ -598,6 +644,86 @@ public override void OnMaxPlayers(int limit) {
         ConsoleException(e);
     }
 }
+
+#region Configuration
+
+public override void OnVersion(string serverType, string version) { UpdateConfig("version", serverType + "/" + version); }
+
+public override void OnServerName(string serverName) { UpdateConfig("vars_serverName", serverName); }
+
+public override void OnServerDescription(string serverDescription) { UpdateConfig("vars_serverDescription", serverDescription); }
+
+public override void OnServerMessage(string serverMessage) { UpdateConfig("vars_serverMessage", serverMessage ); } // BF3
+
+public override void OnPunkbuster(bool isEnabled) { UpdateConfig("punkBuster_activate", isEnabled); } // punkBuster.activate?
+
+public override void OnRanked(bool isEnabled) { UpdateConfig("vars_ranked", isEnabled); }
+
+public override void OnIdleTimeout(int limit) { UpdateConfig("vars_idleTimeout", limit); }
+
+public override void OnIdleBanRounds(int limit) { UpdateConfig("vars_idleBanRounds", limit); } //BF3
+
+public override void OnRoundRestartPlayerCount(int limit) { UpdateConfig("vars_roundRestartPlayerCount", limit); }
+
+public override void OnRoundStartPlayerCount(int limit) { UpdateConfig("vars_roundStartPlayerCount", limit); }
+
+public override void OnGameModeCounter(int limit) { UpdateConfig("vars_gameModeCounter", limit); }
+
+public override void OnCtfRoundTimeModifier(int limit) { UpdateConfig("vars_ctfRoundTimeModifier", limit); } // BF3
+
+public override void OnRoundLockdownCountdown(int limit) { UpdateConfig("vars_roundLockdownCountdown", limit); }
+
+public override void OnRoundWarmupTimeout(int limit) { UpdateConfig("vars_roundWarmupTimeout", limit); }
+
+public override void OnPremiumStatus(bool isEnabled) { UpdateConfig("vars_premiumStatus", isEnabled); }
+        
+public override void OnGunMasterWeaponsPreset(int preset) { UpdateConfig("vars_gunMasterWeaponsPreset", preset); }
+        
+public override void OnVehicleSpawnAllowed(bool isEnabled) { UpdateConfig("vars_vehicleSpawnAllowed", isEnabled); }
+
+public override void OnVehicleSpawnDelay(int limit) { UpdateConfig("vars_vehicleSpawnDelay", limit); }
+
+public override void OnBulletDamage(int limit) { UpdateConfig("vars_bulletDamage", limit); }
+
+public override void OnOnlySquadLeaderSpawn(bool isEnabled) { UpdateConfig("vars_onlySquadLeaderSpawn", isEnabled); }
+
+public override void OnSoldierHealth(int limit) { UpdateConfig("vars_solderHealth", limit); }
+
+public override void OnPlayerManDownTime(int limit) { UpdateConfig("vars_playerManDownTime", limit); }
+
+public override void OnPlayerRespawnTime(int limit) { UpdateConfig("vars_playerRespawnTime", limit); }
+
+public override void OnHud(bool isEnabled) { UpdateConfig("vars_hud", isEnabled); }
+
+public override void OnNameTag(bool isEnabled) { UpdateConfig("vars_nameTag", isEnabled); }
+
+public override void OnFriendlyFire(bool isEnabled) { UpdateConfig("vars_friendlyFire", isEnabled ); }
+
+public override void OnUnlockMode(string mode) { UpdateConfig("vars_unlockMode", mode); } //BF3
+
+public override void OnTeamBalance(bool isEnabled) { UpdateConfig("vars_autoBalance", isEnabled); } // vars.autoBalance too
+
+public override void OnKillCam(bool isEnabled) { UpdateConfig("vars_killCam", isEnabled); }
+
+public override void OnMiniMap(bool isEnabled) { UpdateConfig("vars_miniMap", isEnabled ); }
+
+public override void OnCrossHair(bool isEnabled) { UpdateConfig("vars_crossHair", isEnabled); } // not supported?
+
+public override void On3dSpotting(bool isEnabled) { UpdateConfig("vars_3dSpotting", isEnabled ); }
+
+public override void OnMiniMapSpotting(bool isEnabled) { UpdateConfig("vars_miniMapSpotting", isEnabled); }
+
+public override void OnThirdPersonVehicleCameras(bool isEnabled) { UpdateConfig("vars_3pCam", isEnabled ); }
+ 
+public override void OnTeamKillCountForKick(int limit) { UpdateConfig("vars_teamKillCountForKick", limit); }
+
+public override void OnTeamKillValueIncrease(int limit) { UpdateConfig("vars_teamKillValueIncrease", limit); }
+
+public override void OnTeamKillValueDecreasePerSecond(int limit) { UpdateConfig("vars_teamKillValueDecreasePerSecond", limit); }
+
+public override void OnTeamKillValueForKick(int limit) { UpdateConfig("vars_teamKillValueForKick", limit); }
+
+#endregion
 
 
 
@@ -626,6 +752,33 @@ public override void OnMaxPlayers(int limit) {
 
 
 
+
+
+
+
+
+private void UpdateConfig(String key, String val) {
+    InnerUpdateConfig(key, val);
+}
+
+private void UpdateConfig(String key, bool val) {
+    InnerUpdateConfig(key, val);
+}
+
+private void UpdateConfig(String key, int val) {
+    InnerUpdateConfig(key, Convert.ToDouble(val));
+}
+
+private void InnerUpdateConfig(String key, Object val) {
+    if (fConfigSettings == null || fConfigTimestamp == null) return;
+
+    try {
+        fConfigSettings[key] = val;
+        fConfigTimestamp[key] = DateTime.Now;
+    } catch (Exception e) {
+        ConsoleException(e);
+    }
+}
 
 
 
