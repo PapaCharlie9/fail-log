@@ -562,7 +562,7 @@ namespace PRoConEvents
                     CheckForPluginUpdate();
                 });
             pluginStartup.IsBackground = true;
-            pluginStartup.Name = "FailLog - PluginStartup";
+            pluginStartup.Name = "PluginStartup";
             pluginStartup.Start();
         }
 
@@ -716,7 +716,7 @@ namespace PRoConEvents
                             }
                         );
                         restartThread.IsBackground = true;
-                        restartThread.Name = "FailLog - RestartThread";
+                        restartThread.Name = "RestartThread";
                         restartThread.Start();
                     }
                     else
@@ -986,7 +986,7 @@ namespace PRoConEvents
                         SendBlazeReport(postData);
                     });
                 webLogThread.IsBackground = true;
-                webLogThread.Name = "FailLog - WebLogThread";
+                webLogThread.Name = "WebLogThread";
                 webLogThread.Start();
             }
 
@@ -1042,7 +1042,7 @@ namespace PRoConEvents
                         }
                     });
                 mailSendThread.IsBackground = true;
-                mailSendThread.Name = "FailLog - MailSendThread";
+                mailSendThread.Name = "MailSendThread";
                 mailSendThread.Start();
             }
         }
